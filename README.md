@@ -15,6 +15,10 @@ https://code.google.com/archive/p/godxq1986/downloads
 * Key mapping bad, especially MIYOO A30 not fixed. TRIMUI will be better.  
 * MIYOO A30 works slowly, because of screen rotation of 90 degrees (or 270 degrees), NOT machine's reason.     
 
+## History  
+* 2025-01-11: krkrsdl2_v7.24_final.tar.gz, could miss files, first commit to github    
+* 2024-12-25: krkrsdl2_v1.tar.gz  
+
 ## ARM GCC Toolchains, need to modify Makefile manually      
 * For miyoo a30  
 https://github.com/XK9274/a30-sdk-miyoo/releases/tag/16042024     
