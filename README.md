@@ -18,7 +18,7 @@ https://code.google.com/archive/p/godxq1986/downloads
 ```
 make MIYOO=2 clean
 make MIYOO=2 -j8
-make MIYOO=2 -j8 && make MIYOO=2 install && make MIYOO=2 run  
+make MIYOO=2 -j8 && make install && make run  
 ```
 * For PC Xubuntu 20.04, by VirtualBox  
 ```
@@ -31,13 +31,13 @@ make MIYOO=0 -j8 && make debug
 ```
 make MIYOO=3 clean
 make MIYOO=3 -j8
-make MIYOO=3 -j8 && make MIYOO=3 install && make MIYOO=3 run  
+make MIYOO=3 -j8 && make install && make run  
 ```
 * For MIYOO A30  
 ```
 make MIYOO=1 clean
 make MIYOO=1 -j8
-make MIYOO=1 -j8 && make MIYOO=1 install && make MIYOO=1 run  
+make MIYOO=1 -j8 && make install && make run  
 ```
 
 ## Original Readme
