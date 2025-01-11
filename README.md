@@ -21,9 +21,9 @@ https://github.com/XK9274/a30-sdk-miyoo/releases/tag/16042024
 * For Trimui Smart Pro and Trimui Brick, aarch64  
 https://github.com/trimui/toolchain_sdk_smartpro/releases/tag/20231018     
 * For Xubuntu 20.04 64bit  
-sudo apt install gcc g++ gdb libsdl2-dev   
+sudo apt install gcc g++ gdb libsdl2-dev adb     
 
-## Usage and Debugging (after copy resource files)     
+## Usage and Debugging (after copying resource files to tf card)     
 * For TRIMUI SMART PRO, after adb shell 'killall -KILL runtrimui.sh MainUI'  
 ```
 make MIYOO=2 clean
@@ -43,7 +43,7 @@ make MIYOO=3 clean
 make MIYOO=3 -j8
 make MIYOO=3 -j8 && make install && make run  
 ```
-* For MIYOO A30  
+* For MIYOO A30, after adb shell 'killall -KILL main MainUI'  
 ```
 make MIYOO=1 clean
 make MIYOO=1 -j8
