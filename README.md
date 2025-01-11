@@ -13,7 +13,7 @@ https://code.google.com/archive/p/godxq1986/downloads
 ## Status  
 * Save and load functions not work.    
 * Key mapping bad, especially MIYOO A30 not fixed. TRIMUI will be better.  
-* MIYOO A30 works slowly, because of rotatation of 90 degrees, or 270 degrees, NOT machine's reason.     
+* MIYOO A30 works slowly, because of screen rotation of 90 degrees (or 270 degrees), NOT machine's reason.     
 
 ## Usage and Debugging (after copy resource files)     
 * For TRIMUI SMART PRO
