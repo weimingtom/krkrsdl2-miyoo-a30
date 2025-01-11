@@ -1,7 +1,7 @@
 # krkrsdl2-miyoo-a30
 [WIP] krkrsdl2 MIYOO A30, TRIMUI SMART PRO, TRIMUI BRICK port for code hacking and kirikiri2 gbk non-commercial unencrypted games without xp3filter.tjs and patch.tjs support
 
-## Original Code, most code is from others, not mine  
+## Original Code, most codes are from others, not mine  
 * https://github.com/krkrsdl2/krkrsdl2  
 krkrsdl2_20240518_v2.tar.gz, see version 638f820    
 https://github.com/krkrsdl2/krkrsdl2/tree/638f8203c202163971ae1c483a2316ffcb9ef0ba  
