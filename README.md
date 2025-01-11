@@ -15,7 +15,7 @@ https://code.google.com/archive/p/godxq1986/downloads
 * Key mapping bad, especially MIYOO A30 not fixed. TRIMUI will be better.  
 * MIYOO A30 works slowly, because of screen rotation of 90 degrees (or 270 degrees), NOT machine's reason.     
 
-## ARM GCC Toolchains, need to modify Makefile by manual    
+## ARM GCC Toolchains, need to modify Makefile manually      
 * For miyoo a30  
 https://github.com/XK9274/a30-sdk-miyoo/releases/tag/16042024     
 * For Trimui Smart Pro and Trimui Brick, aarch64  
