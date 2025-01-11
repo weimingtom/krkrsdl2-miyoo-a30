@@ -41,17 +41,17 @@ make MIYOO=0 -j8
 make MIYOO=0 -j8 && make test
 make MIYOO=0 -j8 && make debug    
 ```
-* For TRIMUI BRICK, after adb shell 'killall -KILL runtrimui.sh MainUI'  
+* (not tested) For TRIMUI BRICK, after adb shell 'killall -KILL runtrimui.sh MainUI'  
 ```
 make MIYOO=3 clean
 make MIYOO=3 -j8
-make MIYOO=3 -j8 && make install && make run  
+(not tested) make MIYOO=3 -j8 && make install && make run  
 ```
-* For MIYOO A30, after adb shell 'killall -KILL main MainUI'  
+* (not tested) For MIYOO A30, after adb shell 'killall -KILL main MainUI'  
 ```
 make MIYOO=1 clean
 make MIYOO=1 -j8
-make MIYOO=1 -j8 && make install && make run  
+(not tested) make MIYOO=1 -j8 && make install && make run  
 ```
 
 ## Original Readme
