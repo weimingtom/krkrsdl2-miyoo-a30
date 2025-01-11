@@ -2,14 +2,16 @@
 [WIP] krkrsdl2 MIYOO A30, TRIMUI SMART PRO, TRIMUI BRICK port for code hacking and kirikiri2 gbk non-commercial unencrypted games without xp3filter.tjs and patch.tjs support
 
 ## Original Code, most code is from others, not mine  
-* https://github.com/krkrsdl2/krkrsdl2
+* https://github.com/krkrsdl2/krkrsdl2  
+krkrsdl2_20240518_v2.tar.gz, see version 638f820    
+https://github.com/krkrsdl2/krkrsdl2/tree/638f8203c202163971ae1c483a2316ffcb9ef0ba  
 * https://github.com/krkrsdl2/krkrsdl2-kag3-demo
 * https://github.com/krkrz/krkrz
 * The data.xp3 for 'make test' is from Spring Days, using kirikiri2 engine  
 https://code.google.com/archive/p/godxq1986/downloads   
 
 ## Status  
-* Save and load function not work.    
+* Save and load functions not work.    
 * Key mapping bad, especially MIYOO A30 not fixed. TRIMUI will be better.  
 * MIYOO A30 works slowly, because of rotatation of 90 degrees, or 270 degrees, NOT machine's reason.     
 
