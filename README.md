@@ -16,7 +16,7 @@ https://code.google.com/archive/p/godxq1986/downloads
 * MIYOO A30 works slowly, because of screen rotation of 90 degrees (or 270 degrees), NOT machine's reason.     
 
 ## Usage and Debugging (after copy resource files)     
-* For TRIMUI SMART PRO
+* For TRIMUI SMART PRO, after adb shell 'killall -KILL runtrimui.sh MainUI'  
 ```
 make MIYOO=2 clean
 make MIYOO=2 -j8
@@ -29,7 +29,7 @@ make MIYOO=0 -j8
 make MIYOO=0 -j8 && make test
 make MIYOO=0 -j8 && make debug    
 ```
-* For TRIMUI BRICK  
+* For TRIMUI BRICK, after adb shell 'killall -KILL runtrimui.sh MainUI'  
 ```
 make MIYOO=3 clean
 make MIYOO=3 -j8
