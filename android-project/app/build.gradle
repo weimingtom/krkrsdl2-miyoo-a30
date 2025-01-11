@@ -1,0 +1,117 @@
+def buildAsLibrary = project.hasProperty('BUILD_AS_LIBRARY');
+def buildAsApplication = !buildAsLibrary
+if (buildAsApplication) {
+    apply plugin: 'com.android.application'
+}
+else {
+    apply plugin: 'com.android.library'
+}
+
+def get_abi_filters() {
+    def in_abi_filters = []
+    if (project.hasProperty("armeabi-v7a")) {
+        in_abi_filters.add('armeabi-v7a')
+    }
+    if (project.hasProperty("arm64-v8a")) {
+        in_abi_filters.add('arm64-v8a')
+    }
+    if (project.hasProperty("x86")) {
+        in_abi_filters.add('x86')
+    }
+    if (project.hasProperty("x86_64")) {
+        in_abi_filters.add('x86_64')
+    }
+    if (!project.hasProperty("armeabi-v7a") && !project.hasProperty("arm64-v8a") && !project.hasProperty("x86") && !project.hasProperty("x86_64")) {
+        in_abi_filters = ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64']
+    }
+    return in_abi_filters
+}
+
+def get_cmakelists_path() {
+    return rootProject.projectDir.getAbsolutePath() + '/../CMakeLists.txt'
+}
+
+def get_cmake_arguments() {
+    def in_cmake_arguments = []
+    in_cmake_arguments.add("-DANDROID_APP_PLATFORM=android-16")
+    in_cmake_arguments.add("-DANDROID_STL=c++_static")
+    return in_cmake_arguments
+}
+
+android {
+    compileSdkVersion 26
+    defaultConfig {
+        if (buildAsApplication) {
+            applicationId "pw.uyjulian.krkrsdl2"
+        }
+        minSdkVersion 16
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+        externalNativeBuild {
+            cmake {
+                abiFilters = []
+                abiFilters.addAll(get_abi_filters())
+                arguments = []
+                arguments.addAll(get_cmake_arguments())
+                version "3.12+"
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    if (!project.hasProperty('EXCLUDE_NATIVE_LIBS')) {
+        sourceSets.main {
+            jniLibs.srcDir 'libs'
+        }
+        externalNativeBuild {
+            // ndkBuild {
+            //     path 'jni/Android.mk'
+            // }
+            cmake {
+                path = get_cmakelists_path()
+            }
+        }
+       
+    }
+    lintOptions {
+        abortOnError false
+    }
+    
+    if (buildAsLibrary) {
+        libraryVariants.all { variant ->
+            variant.outputs.each { output ->
+                def outputFile = output.outputFile
+                if (outputFile != null && outputFile.name.endsWith(".aar")) {
+                    def fileName = "org.libsdl.app.aar";
+                    output.outputFile = new File(outputFile.parent, fileName);
+                }
+            }
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def app_name = "krkrsdl2"
+            def architecture = "universal"
+            def abi_filters = get_abi_filters()
+            if (abi_filters.size() == 1)
+            {
+                architecture = abi_filters[0]
+            }
+            outputFileName = "${app_name}_${architecture}.apk"
+        }
+    }
+
+    aaptOptions {
+        noCompress ''
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+}

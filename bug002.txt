@@ -1,0 +1,27 @@
+when SDL_Quit
+SDL_EGL_CreateSurface fail: unable to create an EGL window surface (call to eglCreateWindowSurface failed, reporting an error of EGL_BAD_ALLOC)
+Cannot create SDL window: mali-fbdev: Can't create EGL window surface
+
+---
+
+sh: setterm: not found
+SDL_EGL_CreateSurface fail: unable to create an EGL window surface (call to eglCreateWindowSurface failed, reporting an error of EGL_BAD_ALLOC)
+==== An exception occured at yesnodialog.tjs(13)[(function) YesNoDialogWindow], VM ip = 6 ====
+-- Disassembled VM code --
+#(13)                 super.Window();
+00000006 calld %0, %2.*0()	// *0 = (string)"Window"
+-- Register dump --
+%-16=(void)  %-15=(object)(object 0xe6e8000:0xe6e8000)  %-14=(void)  %-13=(int)0  %-12=(void)
+%-11=(void)  %-10=(string)"undefined"  %-9=(void)  %-8=(object)(object 0xe88ebd0:0xe87bd80)
+%-7=(void)  %-6=(object)(object 0xe5c6f80:0xe5c6f80)  %-5=(void)  %-4=(string)"确认"
+%-3=(string)"您确定要退出吗"  %-2=(object)(object 0x7ff8c2c670:0x0)
+%-1=(object)(object 0xe6e8000:0xe6e8000)  %0=(void)  %1=(object)(object 0xde8c580:0x0)
+%2=(object)(object 0xded3c40:0x0)  %3=(object)(object 0x0:0x0)  %4=(void)
+%5=(object)(object 0xdec3eb0:0x0)  %6=(object)(object 0xde8c580:0x0)
+%7=(object)(object 0xdec3eb0:0x0)  %8=(int)39  %9=(string)"exp"  %10=(string)"target"
+----------------------------------------------------------------------------------------------
+Script exception raised
+Cannot create SDL window: mali-fbdev: Can't create EGL window surface
+trace : yesnodialog.tjs(187)[(function) askYesNo] <-- mainwindow.tjs(768)[(function) onCloseQuery] <-- immediate event
+
+

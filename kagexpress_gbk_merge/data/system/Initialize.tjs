@@ -1,0 +1,280 @@
+// Initialize.tjs - システムの初期化
+// Copyright (C)2001-2008, W.Dee and contributors  改変?配布は自由です
+
+// システムバージョン
+var kagVersion = "3.30 stable rev.2";
+
+/*
+	Debug.message へのショートカット
+*/
+
+var dm = Debug.message; // これで dm("message"); でコンソールに message を表示できる
+
+
+/*
+	デフォルトの「捕捉されない例外」ハンドラ
+*/
+
+System.exceptionHandler = function (e)
+{
+	// どこにも捕捉されない例外がシステム側で捕捉された場合、この関数が
+	// 呼ばれる。e は例外オブジェクト。
+	if(e instanceof "ConductorException")
+	{
+		// コンダクタの投げた例外の場合
+		Debug.logAsError(); // ログのファイルへの書き出し動作の開始など
+		var event_disabled = System.eventDisabled;
+		System.eventDisabled = true;
+			// エラーの理由を表示させている間にイベントが発生すると
+			// やっかいなのでいったんイベント発生を停止させる
+		System.inform(e.message);
+		System.eventDisabled = event_disabled;
+			// イベントを発生するかどうかを元の状態に
+		return true; // true を返すと本体側で例外の処理は行わなくなる
+	}
+	else
+	{
+		return false; // false を返すと通常の例外処理
+	}
+};
+
+
+/*
+	パスの設定
+	後に指定した物が、より優先されて使用される
+*/
+
+
+function useArchiveIfExists(name)
+{
+	// name が存在していたらそのアーカイブを使う
+	var arcname;
+	if(Storages.isExistentStorage(arcname = System.exePath + name))
+		Storages.addAutoPath(arcname + ">");
+}
+
+Storages.addAutoPath(System.exePath + "video/"); // exePath 以下の video/
+Storages.addAutoPath("video/"); // video フォルダ
+Storages.addAutoPath("others/"); // その他
+Storages.addAutoPath("rule/"); // ルール画像フォルダ
+Storages.addAutoPath("sound/"); // 効果音フォルダ
+Storages.addAutoPath("bgm/"); // BGM フォルダ
+Storages.addAutoPath("fgimage/"); // 前景画像フォルダ
+Storages.addAutoPath("bgimage/"); // 背景画像フォルダ
+Storages.addAutoPath("scenario/"); // シナリオフォルダ
+Storages.addAutoPath("image/"); // そのほかの画像フォルダ
+Storages.addAutoPath("system/"); // システムフォルダ
+
+// パッチアーカイブの検索と使用
+// もしこれらの名前を持ったアーカイブが実行可能ファイルと
+// 同じ場所にあった場合、それを優先して使う
+useArchiveIfExists("video.xp3");
+useArchiveIfExists("others.xp3");
+useArchiveIfExists("rule.xp3");
+useArchiveIfExists("sound.xp3");
+useArchiveIfExists("bgm.xp3");
+useArchiveIfExists("fgimage.xp3");
+useArchiveIfExists("bgimage.xp3");
+useArchiveIfExists("scenario.xp3");
+useArchiveIfExists("image.xp3");
+useArchiveIfExists("system.xp3");
+
+useArchiveIfExists("patch.xp3");
+
+// 追加のパッチ用アーカイブの検索
+for(var i = 2; ; i++)
+{
+	// パッチ用アーカイブ patch2.xp3, patch3.xp3 ... がある場合はそちらを
+	// 優先して読み込むように
+	if(Storages.isExistentStorage(System.exePath + "patch" + i + ".xp3"))
+		Storages.addAutoPath(System.exePath + "patch" + i + ".xp3>");
+	else
+		break;
+}
+
+delete useArchiveIfExists; // useArchiveIfExists は使い終わったので一応消しておく
+
+/*
+	システムバージョン
+*/
+Debug.notice("OS : " + System.osName + " (" + System.platformName + ")");
+Debug.notice("KAG : " + kagVersion);
+Debug.notice("Kirikiri : " + System.versionString);
+
+/*
+	( デバッグ ) 時間計測
+*/
+
+var parseStartTick = System.getTickCount();
+
+
+/*
+	スクリプト読み込みラッパー
+*/
+
+function KAGLoadScript(name)
+{
+	var start = System.getTickCount();
+	Scripts.execStorage(name);
+	dm(name + " を読み込みました(" + (System.getTickCount() - start) + "ms)");
+}
+
+var loaded_scripts = %[];
+
+function KAGLoadScriptOnce(name)
+{
+	// 指定したスクリプトを読み込むが、一回しか読み込まない
+	if(global.loaded_scripts[name] === true) return; // 既に読み込んでいる
+	global.KAGLoadScript(name);
+	global.loaded_scripts[name] = true;
+}
+
+/*
+	Config.tjs 読み込み
+*/
+if(Storages.isExistentStorage("Config.tjs"))
+{
+	KAGLoadScript("Config.tjs");
+}
+else if(Storages.isExistentStorage("Config.~new"))
+{
+	System.inform("Config.tjs が見つかりません。\nsystem フォルダにある "
+		"Config.~new ファイルを Config.tjs に改名してください。");
+	System.exit();
+}
+else
+{
+	throw new Exception("Config.tjs が見つかりません。");
+}
+
+/*
+	Config.tjs バージョンチェック
+*/
+
+if(typeof global.config_version == "undefined" || config_version != kagVersion)
+{
+	KAGLoadScript("UpdateConfig.tjs");
+}
+
+/*
+	二重起動のチェック
+*/
+
+// 実行可能ファイルのパスをキーにしてロックを行う
+if(!System.createAppLock(System.exePath.replace(/[^A-Za-z]/g, '_')))
+{
+	// すでに起動している
+	System.inform(System.title + "はすでに起動しています");
+	System.exit();
+}
+
+
+/*
+	オン?デマンド?ローディングを行うための定義
+*/
+
+
+property askYesNo { getter() { KAGLoadScript("YesNoDialog.tjs"); return global.askYesNo; } }
+property CheckBoxLayer { getter() { KAGLoadScript("CheckBoxLayer.tjs"); return global.CheckBoxLayer; } }
+property ButtonLayer { getter() { KAGLoadScript("ButtonLayer.tjs"); return global.ButtonLayer; } }
+property EditLayer { getter() { KAGLoadScript("EditLayer.tjs"); return global.EditLayer; } }
+property KAGPlugin { getter() { KAGLoadScript("Plugin.tjs"); return global.KAGPlugin; } }
+
+/*
+	各システム読み込み
+*/
+dm("KAG System スクリプトを読み込んでいます...");
+
+KAGLoadScript("Utils.tjs");
+KAGLoadScript("KAGLayer.tjs");
+KAGLoadScript("HistoryLayer.tjs");
+KAGLoadScript("BGM.tjs");
+KAGLoadScript("SE.tjs");
+KAGLoadScript("Movie.tjs");
+KAGLoadScript("Conductor.tjs");
+KAGLoadScript("AnimationLayer.tjs");
+KAGLoadScript("GraphicLayer.tjs");
+KAGLoadScript("MessageLayer.tjs");
+KAGLoadScript("Menus.tjs");
+KAGLoadScript("DefaultMover.tjs");
+KAGLoadScript("MainWindow.tjs");
+if(Storages.isExistentStorage("Override.tjs"))
+	KAGLoadScript("Override.tjs");
+if(Storages.isExistentStorage(System.exePath + "Override2.tjs"))
+	KAGLoadScript(System.exePath + "Override2.tjs");
+
+
+/*
+	( デバッグ ) 時間計測
+*/
+dm("スクリプトの読み込みに " + (System.getTickCount() - parseStartTick) + "ms かかりました");
+parseStartTick = System.getTickCount();
+
+/*
+	( デバッグ ) VM コードのダンプ
+*/
+
+// Scripts.dump();
+
+/*
+	( デバッグ ) 時間計測
+*/
+
+parseStartTick = System.getTickCount();
+
+
+/*
+	KAG メインウィンドウの作成
+	グローバルメンバ kag が存在しなければ KAGWindow クラスの
+	オブジェクトを作成して入れる
+*/
+
+global.kag = new KAGWindow() if typeof global.kag == "undefined";
+
+
+
+
+/*
+	グローバルから簡単にアクセスできるように、いくつかの
+	変数の別名を作成
+*/
+
+var f = kag.flags;   // ユーザ変数 (フラグ)
+var sf = kag.sflags; // システム変数 (システム)
+var tf = kag.tflags; // 一時変数 (一時フラグ)
+
+property mp
+{
+	getter { return kag.conductor.macroParams; }
+}
+
+/*
+	( デバッグ ) 時間計測
+*/
+dm("KAGMainWindow のコンストラクタで " + (System.getTickCount() - parseStartTick) + "ms かかりました");
+delete parseStartTick;
+
+
+/*
+	AfterInit.tjs が存在すれば実行
+*/
+if(Storages.isExistentStorage("AfterInit.tjs"))
+	KAGLoadScript("AfterInit.tjs");
+if(Storages.isExistentStorage(System.exePath + "AfterInit2.tjs"))
+	KAGLoadScript(System.exePath + "AfterInit2.tjs");
+
+/*
+	コマンドラインパラメータとして -ovr が指定されていれば
+	そのパラメータを TJS 式として実行
+*/
+{
+	var ovr = System.getArgument('-ovr');
+	if(ovr !== void && ovr != 'yes') Scripts.eval(ovr);
+}
+
+/*
+	first.ks の実行
+*/
+
+kag.process("first.ks");
+

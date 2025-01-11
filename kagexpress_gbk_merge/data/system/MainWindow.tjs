@@ -1,0 +1,5931 @@
+//;# MainWindow.tjs - KAG メインウィンドウ
+//;# Copyright (C)2001-2008, W.Dee and contributors  改変?配布は自由です
+//;<<'END_OF_TJS_SCRIPT';
+
+// このスクリプトは有効な perl5 スクリプトでもある
+
+class KAGWindow extends Window
+{
+	// KAG のウィンドウ クラス
+	// KAG の動作のメインな部分はここに記述してある
+
+	// 以下のうち、/*C*/ のつく変数は、末端の perl スクリプトによって
+	// 自動的に栞にコピーされるコードが生成される変数
+
+	var scWidth = 640; // 画面横幅
+	var scHeight = 480; // 画面縦幅
+
+	var aboutWidth = 320; // 「このソフトについて」ウィンドウの横幅
+	var aboutHeight = 200; // 同縦幅
+
+	var isFirstProcess = true; // 一番最初の process の呼び出しかどうか
+
+	var freeSaveDataMode = false; // 栞をメニューバーなどで管理せずに、個別のファイルとして管理する
+	var saveThumbnail = false; // サムネイルを保存するかどうか
+	var thumbnailWidth = 133; // サムネイルの横幅
+	var thumbnailDepth = 8; // サムネイルのBMPモード。8か24
+		// サムネイルの フルカラー化およびサイズフリー化のパッチは
+		// ゆん氏からいただきました。
+		// この場を借りてお礼申し上げます。
+
+
+	var snapshotLayer = void; // 画像のスナップショットを一時的に保存するレイヤ
+	var snapshotLockCount = 0; // ロックカウント
+
+	var lastSaveDataNameGlobal = ""; // 最後に保存したフリーセーブモードでのファイル名
+	/*C*/var lastSaveDataName = ""; // 最後に保存したフリーセーブモードでのファイル名
+
+	var saveDataLocation = System.dataPath; // セーブデータ保存場所
+
+	var saveDataID = "00000000-0000-0000-0000-000000000000"; // セーブデータの ID
+
+	var readOnlyMode = false; // 読み込み専用モード(データをディスクに書かない)
+	var dataName = "data"; // セーブデータ名
+	var saveDataMode = ""; // データ保存モード( "c" で暗号化 )
+
+	var recordHistoryOfStore = 0; // 通過履歴を記録するかどうか
+		// 0 = 自動的には記録しない  1 = 保存可能なラベルごと
+		// 2 = 選択肢 ( @s タグ ) ごと
+	var maxHistoryOfStore = 5; // 通過記録の最大数
+	var historyOfStore = []; // 通過履歴データ
+	var nextRecordHistory = false;
+		// 次の保存可能なラベル通過時に現在の情報を保存するかどうか
+
+	var stablePosibility = false;
+		// 栞を保存可能なラベル間で stable になる可能性があるかどうか
+
+	var fullScreened = false; // 現在フルスクリーンかどうか
+
+	var isMain = true; // これがメインウィンドウかどうか
+
+	var askOnClose = true; // 終了時に終了するかをユーザに聞くかどうか
+
+	var helpFile = ""; // 「ヘルプ > 目次」で開くファイル
+
+	var quakeTimer; // quake 用のタイマ
+	var defaultQuakeTimeInChUnit = false;
+	/*C*/var quaking = false; // 揺れているか
+	/*C*/var quakeEndTick = 0; // 揺れを終了させる tick
+	/*C*/var quakeHorzMax = 0; // 横振幅
+	/*C*/var quakeVertMax = 0; // 縦振幅
+	/*C*/var quakePhase = 0;
+
+	var chDefaultAntialiased; // 文字にアンチエイリアスをかけるかどうか
+	var chDefaultFace; // 文字のデフォルトのフォント
+
+	var initialMessageLayerVisible = true;
+
+	var historyLayer; // メッセージ履歴レイヤ
+	/*C*/var historyWriteEnabled = true; // メッセージレイヤに文字を出力するか
+	/*C*/var historyEnabled = true; // メッセージ履歴レイヤを表示可能か
+	var historyShowing = false; // メッセージ履歴レイヤを表示中か
+	var lastHistoryHiddenTick = 0; // 最後に履歴レイヤが非表示になったときの tick
+
+	/*C*/var numCharacterLayers = 0; // 前景レイヤの数
+	/*C*/var numMessageLayers = 1; // メッセージレイヤの数
+
+	var _primaryLayer;
+	property primaryLayer { getter { return fore.base; } };
+
+	var fore = %[]; // 表レイヤ
+	var back = %[]; // 裏レイヤ
+
+	var scPositionX = %[]; // 立ち絵の中心座標(X)
+
+	var tempLayer = void; // 一時的なレイヤ
+
+	var lineBreak; // 行待ち用アニメーションレイヤ
+	var pageBreak; // ページ待ち用グリフのアニメーションレイヤ
+	var clickWaiting = false; // クリック待ちかどうか
+
+	var mainConductor; // メインのコンダクタ
+	var extraConductor; // 予備のコンダクタ
+	var conductor; // 現在のコンダクタ
+	var usingExtraConductor = false; // 予備のコンダクタを使用中かどうか
+	var onExtraConductorReturn; // extraConductor から通常のコンダクタに戻るときによぶ関数
+
+	var tagHandlers; // タグのハンドラ群辞書配列
+
+	var saveMacros = true; // マクロを栞に保存するかどうか
+
+	var current; // 現在操作中のメッセージレイヤ
+	/*C*/var currentNum; // 現在操作中のメッセージレイヤ番号
+	/*C*/var currentPage; // 現在操作中のメッセージレイヤのページ(表0/裏1)
+	/*C*/var currentWithBack = false; // 裏画面にも文字を描画するかどうか
+
+	var bgm; // BGM オブジェクト
+
+	var numSEBuffers = 1; // 効果音バッファの数
+	var se = []; // 効果音バッファオブジェクト
+
+	var numMovies = 1; // ムービーオブジェクト数
+//	var movie; // ムービーオブジェクト
+	var movies = []; // ムービーオブジェクト
+
+	var transCount; // 現在進行中のトランジションの数
+	var moveCount; // 現在進行中の自動移動の数
+
+	var chSpeeds = %[
+		fast: 10, // 「高速」文字表示スピード
+		normal: 30, // 「普通」文字表示スピード
+		slow: 50, // 「遅い」文字表示スピード
+		];
+
+	var userChSpeed = 30; // ユーザの選んだ文字表示スピード
+	var userCh2ndSpeed = -1; // ユーザの選んだ 既読部分の文字表示スピード
+	var chNonStopToPageBreak = false; // ページ末まで一気に読み進むか ( l タグを無視するか )
+	var ch2ndNonStopToPageBreak = false; // 既読の部分でページ末まで一気に読み進むか
+	/*C*/var chUserMode = true; // 文字表示速度は現在ユーザの選んだものか
+	/*C*/var chSpeed = 30; // 現在の文字表示スピード
+	/*C*/var actualChSpeed = chSpeed; // 実際の文字表示スピード
+
+	/*C*/var beforeNoWaitActualChSpeed; // nowait に入る前の actualChSpeed
+	/*C*/var beforeNoWaitChUserMode; // nowait に入る前の chUserMode
+
+	/*C*/var clickSkipEnabled = true; // クリックスキップが有効か
+	/*C*/var nextSkipEnabled = true; // 次の選択肢(/未読)まで進むが有効か
+	var skipMode = 0; // スキップのモード
+		// 0=スキップなし, 1=クリック待ち記号まで, 2=改ページ待ち記号まで, 3=次の停止まで
+		// 4=早送り
+	var autoMode = false; // 自動読みすすみモードかどうか
+	var autoModePageWait = 350; // 自動読みすすみモード時の改ページ時のウェイト
+	var autoModeLineWait = 50; // 自動読みすすみモード時の行クリック待ち時のウェイト
+		// 上の二つは、ノーウェイトにしたい場合は 0 ではなくて -4 を指定すること
+
+	var skipKeyRepressed = false; // return あるいは space キー ( f キーなどではない )
+								// が押されると true になる ( スキップ解除時に false
+
+	var autoModePageWaits = %[
+		fast: 400,  // 自動読みすすみモードの改ページ時 ウェイト「短い」
+		faster: 700,  // 自動読みすすみモードの改ページ時 ウェイト「やや短い」
+		medium: 1000,  // 自動読みすすみモードの改ページ時 ウェイト「普通」
+		slower: 1300, // 自動読みすすみモードの改ページ時 ウェイト「やや遅い」
+		slow: 2000, // 自動読みすすみモードの改ページ時 ウェイト「遅い」
+		];
+
+	var autoModeLineWaits = %[
+		fast: 180,  // 自動読みすすみモードの行末 ウェイト「短い」
+		faster: 240,  // 自動読みすすみモードの行末 ウェイト「やや短い」
+		medium: 300,  // 自動読みすすみモードの行末 ウェイト「普通」
+		slower: 360, // 自動読みすすみモードの行末 ウェイト「やや遅い」
+		slow: 500, // 自動読みすすみモードの行末 ウェイト「遅い」
+		];
+
+	/*C*/var canCancelSkipByClick = true; // クリックによりスキップ状態のキャンセルができるか
+
+	/*C*/var autoWCEnabled = false; // 自動ウェイトが有効かどうか
+	/*C*/var autoWCChars = ""; // 自動ウェイトをかける文字
+	var autoWCWaits = []; // 自動ウェイトのウェイト
+
+	var timeOrigin; // resetWait で設定された時間原点
+	var lastWaitTime; // wait mode=until で実際に待った時間
+
+	var stableHandlers = []; // システムが安定(クリック待ち/停止)したときに呼ばれる
+	var runHandlers = []; // システムが走り始めたときに呼ばれる
+	var inStable = true; // 安定しているとき(走行中でないとき) true
+	var inSleep = false; // s タグで停止しているとき true
+
+	var updateBeforeCh = 0; // 文字を描画する前にいったん画面描画に入るかどうかのカウント
+
+	var messageLayerHiding = false; // ユーザによりメッセージレイヤが隠されているか
+
+	/*C*/var rightClickEnabled = true; // 右クリックが有効か
+	/*C*/var rightClickCall = false; // 右クリックで特定のルーチンを呼ぶか
+	/*C*/var rightClickJump = false; // 右クリックかで特定のラベルにジャンプするか
+	/*C*/var rightClickTarget = ""; // 右クリックでの呼び出し先
+	/*C*/var rightClickStorage = ""; // 右クリックでの呼び出し先
+	/*C*/var rightClickName = "default"; // 右クリックのメニュー表示名
+	/*C*/var rightClickCurrentMenuName = ""; // 右クリックのメニューに現在設定されている名前
+	var rightClickDefaultName = ""; // 右クリックのデフォルトのメニュー表示名
+
+	/*C*/var lastClickGlyphVisible; // extraConductor を使用する直前にクリック待ち記号が可視だったかどうか
+	var lastClickGlyphMessagePage;
+		// extraConductor を使用する直前のクリック待ち記号の表示されているメッセージレイヤのページ
+	var lastClickGlyphMessageNum; // 〃 番号
+	var lastClickGlyphWhich; // 〃 "page" か "line" か
+	var inSleepBeforeExtraConductor; // extraConductor を使用する直前が inSleep だったか
+
+	// 通常のマウスカーソル
+	/*C*/var cursorDefault = crArrow;  // 通常のマウスカーソル
+	/*C*/var cursorPointed = crHandPoint;  // ボタン、リンク等をポイントした時のマウスカーソル
+	/*C*/var cursorWaitingClick = crArrow;  // クリック待ちのマウスカーソル
+	/*C*/var cursorDraggable = crSizeAll; // ドラッグ可能な場所用のマウスカーソル
+
+	/*C*/var supportReadingKey = VK_SPACE; // 追加の読み進みキー
+
+	/*C*/var startAnchorEnabled = false; // 「最初に戻る」が使用可能かどうか
+
+	/*C*/var storeEnabled = true; // ユーザが「栞をはさむ」メニューにアクセス可能かどうか
+	/*C*/var restoreEnabled = true; // ユーザが「栞をたどる」メニューにアクセス可能かどうか
+	var storeLabelPassed = false; // 保存可能なラベルを通過したかどうか
+	/*C*/var currentLabel = ""; // 現在のラベル
+	/*C*/var currentPageName = ""; // 現在のページ名
+	var currentRecordName = ""; // 現在の記録名 ( trail_ストレージ_ラベル )
+	var autoRecordPageShowing = false; // ラベル通過記録をするか
+
+	var numBookMarks = 10; // メニューに用意する栞のサブメニュー項目の数
+	var showBookMarkDate = false; // メニューに栞をはさんだ日付時刻を表示するか
+
+	var bookMarkNames = []; // メニューに設定されている栞の名前
+	var bookMarkDates = []; // 栞の日付
+	var bookMarkProtectedStates = []; // 栞が保護されているかの情報
+
+	var showFixedPitchOnlyInFontSelector = false; // フォント選択で固定ピットフォントのみを表示するか
+
+	var flags = %[]; // フラグ(ユーザ)
+	var pflags = %[]; // 「保存可能なラベル」を通過した時点でのフラグ(ユーザ)
+	var pcflags = %[]; // 〃 (コア)
+	var sflags = %[]; // システム変数領域(ユーザ)
+	var scflags = %[]; // システム変数領域(コア)
+	var tflags = %[]; // 一時フラグ
+
+	var tempBookMarks = []; // 一時的に保存した栞
+
+	var clickCount = 0; // 左クリックカウント
+	var lastMouseDownX; // 最後にクリックされた X 座標
+	var lastMouseDownY; // 最後にクリックされた Y 座標
+
+	var mouseKeyEnabledCount = 0; // マウスキーが有効かどうか
+
+	var kagPlugins = []; // KAG プラグイン
+
+	var keyDownHook = []; // キーが押されたときに呼び出される物
+	var leftClickHook = []; // 左クリックされたときに呼び出される物
+	var rightClickHook = []; // 右クリックされたときに呼び出される物
+
+	var padKeyMap; // パッドボタン -> ハンドラ(キーコード)。コンストラクタ内で設定
+	var padKeyMapReverse; // キーコード -> パッドボタン。コンストラクタ内で設定
+
+
+	var holdPeriodEventQueue = [];	// 保留にされたムービーのピリオドイベントキュー
+	var isLeavePeriodEvent = false;	// ムービーのピリオドイベントを保留にするかどうか
+	var isWaitPeriodEvent = false;	// ムービーのピリオドイベント待ち状態かどうか
+	var waitedPeriodEventStorageName = void;	// ピリオドイベント待ちをコールしたストレージ名
+
+	//------------------------------------------------------ コンストラクタ --
+
+	function KAGWindow(ismain = true, width = 0, height = 0)
+	{
+		// コンストラクタ
+		// 引数 : ismain : メインウィンドウとして作成されるのかどうか
+		super.Window(); // 親クラスのコンストラクタを呼ぶ
+
+		// コンフィギュレーション
+		isMain = ismain;
+		if(ismain)
+		{
+			(KAGWindow_config incontextof this)();
+			(KAGWindow_config_override incontextof this)()
+				if typeof global.KAGWindow_config_override != "undefined";
+		}
+
+		userChSpeed = chSpeed = actualChSpeed = chSpeeds.normal;
+		autoModePageWait = autoModePageWaits.medium;
+		autoModeLineWait = autoModeLineWaits.medium;
+
+		askOnClose = false if !ismain;
+
+		// saveDataLocation がフルパスでないようならば System.exePath を
+		// 付け加える
+		if(saveDataLocation.indexOf(":") == -1)
+			saveDataLocation = System.exePath + saveDataLocation;
+
+		// ログの出力先を saveDataLocation にする
+		if(ismain) Debug.logLocation = saveDataLocation;
+
+		// メニューアイテムの作成
+		if(ismain) (KAGWindow_createMenus incontextof this)();
+		if(typeof this.rightClickMenuItem != "undefined")
+			rightClickDefaultName = rightClickCurrentMenuName = rightClickMenuItem.caption;
+
+		if(typeof this.autoModeMediumMenuItem != "undefined")
+			autoModeMediumMenuItem.checked = true;
+		if(typeof this.windowedMenuItem != "undefined")
+			windowedMenuItem.checked = true;
+		if(typeof this.chNormalMenuItem != "undefined")
+			chNormalMenuItem.checked = true;
+		if(typeof this.ch2ndNoChangeMenuItem != "undefined")
+			ch2ndNoChangeMenuItem.checked = true;
+
+		if(ismain) (Menu_visible_config incontextof this)();
+
+		createBookMarkSubMenus();
+
+		// ウィンドウ外見の調整
+		if(ismain)
+		{
+			borderStyle = bsSingle;
+			innerSunken = true;
+		}
+		else
+		{
+			borderStyle = bsDialog;
+			innerSunken = false;
+		}
+		showScrollBars = false;
+		if(ismain) caption = System.title;
+
+		// システムタイトルをキャプションと同じに
+		if(ismain) System.title = caption;
+
+		// ウィンドウサイズの調整
+		if(width != 0 && height != 0)
+		{
+			// 与えられたサイズを適用
+			scWidth = width;
+			scHeight = height;
+		}
+		setInnerSize(scWidth, scHeight);
+
+		// quake 用タイマの作成
+		quakeTimer = new Timer(onQuakeTimerInterval, '');
+		add(quakeTimer);
+		quakeTimer.interval = 50;
+
+		add(_primaryLayer = new Layer(this, null));
+		with (_primaryLayer) {
+			.name = "プライマリレイヤ";
+			.setSize(scWidth, scHeight);
+			.fillRect(0,0,.width,.height,0);
+			.type = ltOpaque;
+			.visible = true;
+			//.hasImage = false;
+			.onMouseDown = function (x, y, btn) {
+				switch (btn) {
+				case mbLeft:  window.onPrimaryClick();      break;
+				case mbRight: window.onPrimaryRightClick(); break;
+				}
+				return (global.Layer.onMouseDown incontextof this)(...);
+			} incontextof _primaryLayer;
+		}
+
+		// 背景レイヤの作成
+		fore.messages = [];
+		back.messages = [];
+		fore.layers = [];
+		back.layers = [];
+		fore.base = new BaseLayer(this, _primaryLayer, "表-背景");
+		add(fore.base);
+		fore.base.setImageSize(scWidth, scHeight);
+		fore.base.setSizeToImageSize();
+		fore.base.visible = true;
+		back.base = new BaseLayer(this, _primaryLayer, "裏-背景");
+		add(back.base);
+		back.base.setImageSize(scWidth, scHeight);
+		back.base.setSizeToImageSize();
+		fore.base.setCompLayer(back.base);
+		back.base.setCompLayer(fore.base);
+		fore.base.freeImage();
+		back.base.freeImage();
+
+		fore.base.setDefaultCursor(cursorDefault);
+		back.base.setDefaultCursor(cursorDefault);
+
+		// メッセージ履歴レイヤの作成
+		historyLayer = new HistoryLayer(this, fore.base);
+		add(historyLayer);
+
+		// 前景レイヤの作成
+		allocateCharacterLayers(numCharacterLayers);
+
+		// メッセージレイヤの作成
+		allocateMessageLayers(numMessageLayers, false);
+		current = fore.messages[0];
+		currentNum = 0;
+		currentPage = 0;
+		currentWithBack = false;
+		if(initialMessageLayerVisible)
+		{
+			fore.messages[0].visible = true;
+			back.messages[0].visible = true;
+		}
+
+		chDefaultAntialiased = fore.messages[0].defaultAntialiased;
+			// 文字にアンチエイリアスをかけるかどうか
+		chDefaultFace = fore.messages[0].userFace;
+			// 文字のデフォルトのフォント
+
+		if(typeof this.chAntialiasMenuItem != "undefined")
+			chAntialiasMenuItem.checked = chDefaultAntialiased;
+
+		// 行待ち/ページ待ちアニメーションレイヤの作成
+		lineBreak = new ClickGlyphLayer(this, fore.base);
+		add(lineBreak);
+		lineBreak.name = "行クリック待ち記号";
+		pageBreak = new ClickGlyphLayer(this, fore.base);
+		add(pageBreak);
+		pageBreak.name = "ページ末クリック待ち記号";
+
+		// タグハンドラ/コンダクタを作成
+		tagHandlers = getHandlers();
+		mainConductor = new Conductor(this, tagHandlers);
+		add(mainConductor);
+		conductor = mainConductor;
+		extraConductor = new Conductor(this, tagHandlers);
+		add(extraConductor);
+
+		// BGM オブジェクトを作成
+		bgm = new BGM(this);
+		add(bgm);
+
+		// 効果音オブジェクトを作成
+		for(var i = 0; i < numSEBuffers; i++)
+			add(se[i] = new SESoundBuffer(this, i));
+
+		// ムービーオブジェクトを作成
+		if(ismain)
+		{
+			for( var i = 0; i < numMovies; i++)
+				add(movies[i] = new Movie(this,i));
+		}
+
+		// デフォルトのハンドラを追加
+		stableHandlers.add(defaultStableHandler);
+		runHandlers.add(defaultRunHandler);
+
+		// システム変数の読み込み
+		if(ismain) loadSystemVariables();
+
+		// システム変数を反映
+		if(ismain)
+		{
+			setSystemStateFromSystemVariables();
+			setBookMarkMenuCaptions();
+		}
+
+		// メッセージレイヤのクリア
+		clearMessageLayers(false);
+
+@if (kirikiriz==0)
+		// ウィンドウ位置の調節
+		if(this.width + this.left > System.desktopLeft + System.desktopWidth)
+			left = ((System.desktopWidth - this.width) >>1) + System.desktopLeft;
+		if(this.height + this.top > System.desktopTop + System.desktopHeight)
+			top = ((System.desktopHeight - this.height) >>1) + System.desktopTop;
+@endif
+
+		// パッドボタンハンドラの作成
+		createPadKeyMap();
+
+
+		// ウィンドウを表示
+		if(ismain) visible = true;
+
+		// 画面サイズがウィンドウサイズよりも小さい場合は
+		// フルスクリーンにしてみる
+		if(ismain)
+		{
+			if(System.screenWidth <= scWidth && System.screenHeight <= scHeight)
+				onFullScreenMenuItemClick(this);
+		}
+
+		// 前回起動時にフルスクリーンだった場合はフルスクリーンにしてみる
+		if(ismain)
+		{
+			if(scflags.fullScreen !== void && +scflags.fullScreen)
+				onFullScreenMenuItemClick(this);
+		}
+
+		// いったんシステム変数を書き出す
+		if(ismain) saveSystemVariables();
+	}
+
+	//------------------------------------------------------------- finalize --
+
+	function finalize()
+	{
+		// finalize メソッド
+        clearBgmStop();
+        clearBgmLabel();
+
+		// プラグインの無効化
+		for(var i = 0; i < kagPlugins.count; i++) invalidate kagPlugins[i];
+
+		// 前景、メッセージレイヤを無効化
+		for(var i = 0; i< fore.layers.count; i++) invalidate fore.layers[i];
+		for(var i = 0; i< back.layers.count; i++) invalidate back.layers[i];
+		for(var i = 0; i< fore.messages.count; i++) invalidate fore.messages[i];
+		for(var i = 0; i< back.messages.count; i++) invalidate back.messages[i];
+
+		// snapshotLayer を無効化
+		invalidate snapshotLayer if snapshotLayer !== void;
+
+		// tempLayer を無効化
+		invalidate tempLayer if tempLayer !== void;
+
+		// スーパークラスの finalize を呼ぶ
+		super.finalize(...);
+	}
+
+	//-------------------------------------------------- onCloseQuery/close --
+
+	function onCloseQuery()
+	{
+		saveSystemVariables();
+		if(!askOnClose) { super.onCloseQuery(true); return; }
+		super.onCloseQuery(askYesNo("終了しますか？"));
+	}
+
+	function close()
+	{
+		// ウィンドウを閉じる
+		saveSystemVariables();
+		super.close(...);
+	}
+
+	function shutdown()
+	{
+		// ウィンドウを閉じるが、終了確認を行わない
+		// このメソッド内で close をすると、様々な
+		// オブジェクトが無効化されてしまい、この
+		// 関数から戻った先でエラーが発生する。
+		// そのため、いったん AsyncTrigger を介して、
+		// 全てのメソッドから帰ったあとにシャットダウン
+		// 処理を行う。
+		global.shutdownTrigger =
+			new AsyncTrigger(handleShutdown, '');
+		global.shutdownTrigger.cached = true;
+		global.shutdownTrigger.trigger();
+		if(conductor.status == conductor.mRun)
+			conductor.interrupt();
+			// コンダクタが走行中の時は
+			// コンダクタに中断を伝える
+	}
+
+	function handleShutdown()
+	{
+		// shutdown() からのシャットダウン要求を
+		// 実際に処理するメソッド
+		var askOnClose_save = askOnClose;
+		askOnClose = false;
+		close();
+		if(this isvalid) askOnClose = askOnClose_save;
+	}
+
+	function closeByScript(elm)
+	{
+		// ウィンドウを閉じる
+		// ちょっと面倒くさいとをやっているのは
+		// shutdown と同じ理由
+		// 「いいえ」が選択されてウィンドウが閉じなかった場合は
+		// 'not_closed' トリガが発行され、実行は再開する。
+		var askOnClose_save = askOnClose;
+		if(elm.ask !== void && !(+elm.ask)) askOnClose = false;
+		global.shutdownTrigger =
+			new AsyncTrigger(handleCloseByScript, '');
+		global.shutdownTrigger.cached = true;
+		global.shutdownTrigger.trigger();
+
+		// closeByScript は、このハンドラが終わった直後に
+		// 「終了しますか？」のダイアログを表示する。
+		// 終了する場合はそのまま終了する。
+		// 終了しない場合は 'not_closed' トリガが発行され、
+		// 実行は継続する。
+		conductor.wait(%[
+			not_closed : askOnClose_save
+			? (function
+			{
+				// 実際にこれが呼ばれることはないが、一応
+				askOnClose = true;
+			} incontextof this)
+			: (function
+			{
+			} incontextof this)
+			]);
+	}
+
+	function handleCloseByScript()
+	{
+		// shutdown() からのシャットダウン要求を
+		// 実際に処理するメソッド
+		close();
+		if(this isvalid) // いいえ が選択された場合
+			conductor.trigger('not_closed');
+	}
+
+	//------------------------------------------------------ プラグイン処理 --
+
+	function forEachEventHook(method, func, arg)
+	{
+		// すべてのプラグインオブジェクトの method にたいして
+		// func を実行する
+		// func の引数には各要素と arg が渡される
+		if(kagPlugins.count)
+		{
+			var array = [];
+			array.assign(kagPlugins); // いったんコピーし、コピーした物に対して実行する
+			var arraycount = array.count;
+			for(var i =0; i<arraycount; i++)
+			{
+				var obj = array[i];
+				if(typeof obj[method] != "undefined")
+					func(obj[method], arg);
+			}
+		}
+	}
+
+	function addPlugin(plugin)
+	{
+		// プラグインオブジェクトを追加
+		kagPlugins.add(plugin);
+	}
+
+	function removePlugin(plugin)
+	{
+		// プラグインオブジェクトを削除
+		kagPlugins.remove(plugin);
+	}
+
+	//---------------------------------------------------------- フック処理 --
+
+	function callHook(array, arg1, arg2, arg3)
+	{
+		if(array.count)
+		{
+			var processed = false;
+			var newarray = [];
+			newarray.assign(array);
+			var arraycount = newarray.count;
+			for(var i  = 0; i < arraycount; i++)
+			{
+				var func = newarray[i];
+				var ret = func(arg1, arg2, arg3);
+				processed = processed || ret;
+			}
+			return processed;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	//------------------------------------------ パッドのキーマッピング作成 --
+
+	function createPadKeyMap()
+	{
+		// パッド入力とそれに対応する動作のマッピング。
+		// 標準では十字キーはキーボードのカーソルキーにマッピング、
+		// ボタン1 は Return、ボタン2 は ESC、ボタン3 は メッセージ履歴の表示
+		// にマッピングされる。
+		// 関数を指定した場合はボタンを押したときにはその関数が呼ばれる。
+
+		padKeyMap = %[
+			VK_PADLEFT =>		VK_LEFT,
+			VK_PADRIGHT =>		VK_RIGHT,
+			VK_PADUP =>			VK_UP,
+			VK_PADDOWN =>		VK_DOWN,
+			VK_PAD1 =>			VK_RETURN,
+			VK_PAD2 =>			VK_ESCAPE,
+			VK_PAD3 =>
+				function(ev) {
+					showHistoryByKey(this);
+				},
+			];
+
+		// padKeyMapReverse を作成
+		padKeyMapReverse = %[];
+		var ar = [];
+		ar.assign(padKeyMap);
+		for(var i = 0; i < ar.count; i += 2)
+		{
+			if(typeof(ar[i+1]) != "Object")
+			{
+				padKeyMapReverse[ar[i+1]] = ar[i];
+			}
+		}
+	}
+
+	function getKeyState(key)
+	{
+		// System.getKeyState 関数と同等だが、パッドのキーに関しても
+		// 反応を返す
+		var sg = System.getKeyState;
+		var state = sg(key);
+		if(state) return true;
+		var pad_key = padKeyMapReverse[key];
+		if(pad_key !== void)
+		{
+			// キーコード -> パッドのキーコードの変換が見つかった
+			return sg(pad_key);
+		}
+		return false;
+	}
+
+	//-------------------------------------------------------------- action --
+
+	function action(ev)
+	{
+		if(ev.type == 'onKeyDown' && ev.target === this)
+		{
+			// パッド入力に対応する処理
+			var handler = padKeyMap[ev.key];
+			if(handler !== void)
+			{
+				// ハンドラが見つかった
+				if(typeof(handler) == "Object")
+				{
+					// ハンドラは関数
+					(handler incontextof this)(ev);
+				}
+				else
+				{
+					// ハンドラはキーコード
+					postInputEvent('onKeyDown', %[key: handler]);
+					postInputEvent('onKeyUp', %[key: handler]);
+				}
+			}
+		}
+	}
+
+	//------------------------------------------------------ tempLayer 関連 --
+
+	property temporaryLayer
+	{
+		// ワークエリアとして一時的に使用できるレイヤを返す
+		getter()
+		{
+			if(tempLayer === void)
+			{
+				tempLayer = new KAGLayer(this, primaryLayer);
+				tempLayer.name = "一時ワークレイヤ";
+			}
+			return tempLayer;
+		}
+	}
+
+	//------------------------------------------------ メニューアイテム関連 --
+
+	function onExitMenuItemClick(sender)
+	{
+		close();
+	}
+
+	function onRightClickMenuItemClick(sender)
+	{
+		onPrimaryRightClick(); // 右クリックの動作
+	}
+
+	function onShowHistoryMenuItemClick(sender)
+	{
+		if(historyLayer.visible) hideHistory(); else showHistory();
+	}
+
+	function onSkipToNextStopMenuItemClick(sender)
+	{
+		skipToStop();
+	}
+
+	function onAutoModeMenuItemClick(sender)
+	{
+		if(autoMode) cancelAutoMode(); else enterAutoMode();
+	}
+
+	function onAutoModeWaitMenuClick(sender)
+	{
+		sender.checked = true;
+		autoModePageWait = sender.wait;
+		autoModeLineWait = sender.lwait;
+	}
+
+	function onBackStartMenuItemClick(sender)
+	{
+		goBackHistory();
+	}
+
+	function onGoToStartMenuItemClick(sender)
+	{
+		goToStartWithAsk();
+	}
+
+	function onChSpeedMenuItemClick(sender)
+	{
+		sender.checked = true;
+		userChSpeed = sender.speed;
+		setUserSpeed();
+		saveSystemVariables();
+	}
+
+	function onChNonStopToPageBreakItemClick(sender)
+	{
+		chNonStopToPageBreak = ! chNonStopToPageBreak;
+		if(typeof this.chNonStopToPageBreakItem != "undefined")
+			chNonStopToPageBreakItem.checked = chNonStopToPageBreak;
+			saveSystemVariables();
+	}
+
+	function onCh2ndNonStopToPageBreakItemClick(sender)
+	{
+		ch2ndNonStopToPageBreak = ! ch2ndNonStopToPageBreak;
+		if(typeof this.ch2ndNonStopToPageBreakItem != "undefined")
+			ch2ndNonStopToPageBreakItem.checked = ch2ndNonStopToPageBreak;
+			saveSystemVariables();
+	}
+
+	function onCh2ndSpeedMenuItemClick(sender)
+	{
+		sender.checked = true;
+		userCh2ndSpeed = sender.speed;
+		setUserSpeed();
+		saveSystemVariables();
+	}
+
+	function onChAntialiasMenuItemClick(sender)
+	{
+		chDefaultAntialiased = !chDefaultAntialiased;
+		if(typeof this.chAntialiasMenuItem != "undefined")
+			chAntialiasMenuItem.checked = chDefaultAntialiased;
+		setMessageLayerUserFont();
+		saveSystemVariables();
+	}
+
+	function onChChangeFontMenuItem(sender)
+	{
+		selectFont();
+		saveSystemVariables();
+	}
+
+	function onRestoreMenuClick(sender)
+	{
+		if(!freeSaveDataMode) return;
+		loadBookMarkFromFileWithAsk();
+	}
+
+	function onStoreMenuClick(sender)
+	{
+		if(!freeSaveDataMode) return;
+		saveBookMarkToFileWithAsk();
+	}
+
+	function onWindowedMenuItemClick(sender)
+	{
+		if(fullScreened)
+		{
+			try
+			{
+				fullScreen = false;
+			}
+			catch(e)
+			{
+				Debug.notice("ウィンドウモードに移行できませんでした : " + e.message);
+			}
+			fullScreened = fullScreen;
+			if(fullScreened)
+				fullScreenMenuItem.checked = true;
+			else
+				windowedMenuItem.checked = true;
+		}
+		saveSystemVariables();
+	}
+
+	function onFullScreenMenuItemClick(sender)
+	{
+		if(!fullScreened)
+		{
+			try
+			{
+				fullScreen = true;
+			}
+			catch(e)
+			{
+				Debug.notice("フルスクリーンモードに移行できませんでした : " + e.message);
+			}
+			fullScreened = fullScreen;
+			if(fullScreened)
+				fullScreenMenuItem.checked = true;
+			else
+				windowedMenuItem.checked = true;
+		}
+		saveSystemVariables();
+	}
+
+	function onHelpIndexMenuItemClick(sender)
+	{
+		// ヘルプファイルを開く
+		System.shellExecute(Storages.getLocalName(System.exePath) + helpFile);
+	}
+
+	function onHelpAboutMenuItemClick(sender)
+	{
+		// 「このソフトについて」ウィンドウを表示
+		var win = new global.KAGWindow(false, aboutWidth, aboutHeight);
+		win.setPos(left + ((width - win.width)>>1), top + ((height - win.height)>>1));
+		win.process('about.ks' ,,, true); // about.ks を immediate で表示
+		win.showModal(); // モード付きで表示
+		invalidate win;
+	}
+
+	function onReloadScenarioMenuItemClick(sender)
+	{
+		saveBookMark(1000, false);
+		loadBookMark(1000);
+	}
+
+	function onShowConsoleMenuItemClick(sender)
+	{
+		Debug.console.visible = true;
+	}
+
+	function onShowContollerMenuItemClick(sender)
+	{
+		Debug.controller.visible = true;
+	}
+
+	function internalSetMenuAccessibleAll(menu, state)
+	{
+		// autoEnable が true のすべてのメニュー項目の accessible に値 state を
+		// 設定する
+		if(typeof menu.autoEnable != "undefined" && menu.autoEnable)
+			menu.accessible = state;
+		if(typeof menu.stopRecur == "undefined" || !menu.stopRecur)
+		{
+			var children = menu.children;
+			for(var i = children.count -1; i >= 0; i--)
+				internalSetMenuAccessibleAll(children[i], state); // 再帰
+		}
+	}
+
+	function canStore()
+	{
+		return storeEnabled && storeLabelPassed;
+	}
+
+	function canRestore()
+	{
+		return restoreEnabled;
+	}
+
+	function setMenuAccessibleAll()
+	{
+		// メニュー項目の使用可/不可を設定する
+
+		// autoEnable が true のすべてのメニュー項目の accessible の
+		// 値を設定する
+		var notmodal = !historyLayer.visible && !messageLayerHiding;
+		var state = inStable && notmodal;
+		internalSetMenuAccessibleAll(menu, state);
+
+		// その他のメニューの使用可/不可
+		if(typeof this.skipToNextStopMenuItem != "undefined")
+			skipToNextStopMenuItem.enabled = state && !inSleep && nextSkipEnabled;
+
+		if(typeof this.rightClickMenuItem != "undefined")
+			rightClickMenuItem.enabled = inStable && !historyLayer.visible;
+
+		if(typeof this.showHistoryMenuItem != "undefined")
+			showHistoryMenuItem.enabled = inStable && !messageLayerHiding &&
+				historyEnabled;
+
+		if(typeof this.autoModeMenuItem != "undefined")
+			autoModeMenuItem.enabled = notmodal;
+
+		if(typeof this.goBackMenuItem != "undefined")
+			goBackMenuItem.enabled = state && isHistoryOfStoreAlive();
+
+		if(typeof this.goToStartMenuItem != "undefined")
+			goToStartMenuItem.enabled = state && startAnchorEnabled;
+
+		if(typeof this.storeMenu != "undefined")
+		{
+			var st = state && canStore();
+			var children = storeMenu.children;
+			if(freeSaveDataMode) storeMenu.enabled = st;
+			for(var i = children.count - 1; i >= 0; i--)
+			{
+				var obj = children[i];
+				obj.enabled = obj.orgEnabled && st;
+			}
+		}
+
+		if(typeof this.restoreMenu != "undefined")
+		{
+			var st = state && canRestore();
+			var children = restoreMenu.children;
+			if(freeSaveDataMode) restoreMenu.enabled = st;
+			for(var i = children.count - 1; i >= 0; i--)
+			{
+				var obj = children[i];
+				obj.enabled = obj.orgEnabled && st;
+			}
+		}
+	}
+
+	//----------------------------------------------- マウスキーを有効にする --
+
+	function enableMouseKey()
+	{
+		// マウスキーを有効にする
+		if(mouseKeyEnabledCount == 0)
+		{
+			useMouseKey = true;
+			mouseCursorState = mcsVisible;
+		}
+		mouseKeyEnabledCount++; // 参照カウンタ方式
+	}
+
+	function disableMouseKey()
+	{
+		// マウスキーを無効にする
+		mouseKeyEnabledCount --;
+		if(mouseKeyEnabledCount == 0) useMouseKey = false;
+	}
+
+	//----------------------------------------------------- システム変数関連 --
+
+	function loadSystemVariables()
+	{
+		// システム変数の読み込み
+		try
+		{
+			var fn = saveDataLocation + "/" + dataName +
+				"sc.ksd";
+			if(Storages.isExistentStorage(fn))
+			{
+				scflags = Scripts.evalStorage(fn);
+				scflags = %[] if scflags === void;
+			}
+			else
+			{
+				scflags = %[];
+			}
+
+			var fn = saveDataLocation + "/" + dataName +
+				"su.ksd";
+			if(Storages.isExistentStorage(fn))
+			{
+				sflags = Scripts.evalStorage(fn);
+				sflags = %[] if sflags === void;
+			}
+			else
+			{
+				sflags = %[];
+			}
+		}
+		catch(e)
+		{
+			throw new Exception("システム変数データを読み込めないか、"
+				"あるいはシステム変数データが壊れています(" + e.message + ")");
+		}
+	}
+
+	function setSystemStateFromSystemVariables()
+	{
+		// システム変数に基づいてシステムを設定
+		// (フルスクリーン関連をのぞく)
+		if(scflags.autoModePageWait !== void)
+		{
+			if(typeof this.autoModeWaitMenu !== "undefined")
+			{
+				var children = autoModeWaitMenu.children;
+				for(var i = children.count-1; i >= 0; i--)
+				{
+					var item = children[i];
+					if(typeof item.wait !== "undefined" && item.wait == scflags.autoModePageWait)
+					{
+						item.checked = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if(scflags.userChSpeed !== void)
+		{
+			if(typeof this.chSpeedMenu !== "undefined")
+			{
+				var children = chSpeedMenu.children;
+				for(var i = children.count-1; i >= 0; i--)
+				{
+					var item = children[i];
+					if(typeof item.speed !== "undefined" && item.speed == scflags.userChSpeed)
+					{
+						item.checked = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if(scflags.userCh2ndSpeed !== void)
+		{
+			if(typeof this.chSpeedMenu !== "undefined")
+			{
+				var children = ch2ndSpeedMenu.children;
+				for(var i = children.count-1; i >= 0; i--)
+				{
+					var item = children[i];
+					if(typeof item.speed !== "undefined" && item.speed == scflags.userCh2ndSpeed)
+					{
+						item.checked = true;
+						break;
+					}
+				}
+			}
+		}
+
+		lastSaveDataNameGlobal = scflags.lastSaveDataNameGlobal if scflags.lastSaveDataNameGlobal !== void;
+
+		bookMarkNames = scflags.bookMarkNames if scflags.bookMarkNames !== void;
+		bookMarkDates = scflags.bookMarkDates if scflags.bookMarkDates !== void;
+		bookMarkProtectedStates = scflags.bookMarkProtectedStates if scflags.bookMarkProtectedStates !== void;
+
+		autoModePageWait = scflags.autoModePageWait if scflags.autoModePageWait !== void;
+		autoModeLineWait = scflags.autoModeLineWait if scflags.autoModeLineWait !== void;
+		userChSpeed = scflags.userChSpeed if scflags.userChSpeed !== void;
+		userCh2ndSpeed = scflags.userCh2ndSpeed if scflags.userCh2ndSpeed !== void;
+
+		setUserSpeed();
+
+		chNonStopToPageBreak = scflags.chNonStopToPageBreak if scflags.chNonStopToPageBreak !== void;
+		if(typeof this.chNonStopToPageBreakItem != "undefined")
+			chNonStopToPageBreakItem.checked = chNonStopToPageBreak;
+
+		ch2ndNonStopToPageBreak = scflags.ch2ndNonStopToPageBreak if scflags.ch2ndNonStopToPageBreak !== void;
+		if(typeof this.ch2ndNonStopToPageBreakItem != "undefined")
+			ch2ndNonStopToPageBreakItem.checked = ch2ndNonStopToPageBreak;
+
+		chDefaultAntialiased = scflags.chDefaultAntialiased if scflags.chDefaultAntialiased !== void;
+		if(typeof this.chAntialiasMenuItem != "undefined")
+			chAntialiasMenuItem.checked = chDefaultAntialiased;
+		chDefaultFace = scflags.chDefaultFace if scflags.chDefaultFace !== void;
+
+		setMessageLayerUserFont();
+
+		bgm.restoreSystemState(scflags);
+
+		for(var i = 0; i<numSEBuffers; i++)
+		{
+			se[i].restoreSystemState(scflags);
+		}
+	}
+
+	function clearSystemVariables()
+	{
+		// システム変数のクリア
+		(Dictionary.clear incontextof sflags)();
+	}
+
+	function saveSystemVariables()
+	{
+		// システム変数の保存
+		if(!isMain) return;
+
+		// プラグインを呼ぶ
+		forEachEventHook('onSaveSystemVariables',
+			function(handler, f) { handler(); } incontextof this);
+
+		// フルスクリーン
+		scflags.fullScreen = fullScreened;
+
+		// 文字表示速度
+		scflags.autoModePageWait = autoModePageWait;
+		scflags.autoModeLineWait = autoModeLineWait;
+		scflags.userChSpeed = userChSpeed;
+		scflags.userCh2ndSpeed = userCh2ndSpeed;
+		scflags.chDefaultAntialiased = chDefaultAntialiased;
+		scflags.chDefaultFace = chDefaultFace;
+		scflags.chNonStopToPageBreak = chNonStopToPageBreak;
+		scflags.ch2ndNonStopToPageBreak = ch2ndNonStopToPageBreak;
+
+		// ブックマーク名
+		scflags.bookMarkNames = bookMarkNames; // (コピーではなくて)参照で十分
+		scflags.bookMarkDates = bookMarkDates;
+		scflags.bookMarkProtectedStates = bookMarkProtectedStates;
+
+		scflags.lastSaveDataNameGlobal = lastSaveDataNameGlobal;
+
+		// ファイルに書き込む
+		if(!readOnlyMode)
+		{
+			var fn = saveDataLocation + "/" + dataName +
+				"sc.ksd";
+			(Dictionary.saveStruct incontextof scflags)(fn, saveDataMode);
+
+			var fn = saveDataLocation + "/" + dataName +
+				"su.ksd";
+			(Dictionary.saveStruct incontextof sflags)(fn, saveDataMode);
+		}
+	}
+
+	//------------------------------------------------------- ゲーム変数関連 --
+
+	function internalStoreFlags(f)
+	{
+		// f に現在の状態を記録する
+
+		// KAGWindow に関するもの
+		(Dictionary.clear incontextof f)(); // クリア
+		// ここの [start_store_vars] から [end_store_vars] で囲まれた部分は
+		// 末端の perl スクリプトによって自動的に処理されるので、このマークを消したり
+		// このマークの間を編集したりしないこと。
+		// [start_store_vars]
+		f.lastSaveDataName = lastSaveDataName;
+		f.quaking = quaking;
+		f.quakeEndTick = quakeEndTick;
+		f.quakeHorzMax = quakeHorzMax;
+		f.quakeVertMax = quakeVertMax;
+		f.quakePhase = quakePhase;
+		f.historyWriteEnabled = historyWriteEnabled;
+		f.historyEnabled = historyEnabled;
+		f.numCharacterLayers = numCharacterLayers;
+		f.numMessageLayers = numMessageLayers;
+		f.currentNum = currentNum;
+		f.currentPage = currentPage;
+		f.currentWithBack = currentWithBack;
+		f.chUserMode = chUserMode;
+		f.chSpeed = chSpeed;
+		f.actualChSpeed = actualChSpeed;
+		f.beforeNoWaitActualChSpeed = beforeNoWaitActualChSpeed;
+		f.beforeNoWaitChUserMode = beforeNoWaitChUserMode;
+		f.clickSkipEnabled = clickSkipEnabled;
+		f.nextSkipEnabled = nextSkipEnabled;
+		f.canCancelSkipByClick = canCancelSkipByClick;
+		f.autoWCEnabled = autoWCEnabled;
+		f.autoWCChars = autoWCChars;
+		f.rightClickEnabled = rightClickEnabled;
+		f.rightClickCall = rightClickCall;
+		f.rightClickJump = rightClickJump;
+		f.rightClickTarget = rightClickTarget;
+		f.rightClickStorage = rightClickStorage;
+		f.rightClickName = rightClickName;
+		f.rightClickCurrentMenuName = rightClickCurrentMenuName;
+		f.lastClickGlyphVisible = lastClickGlyphVisible;
+		f.cursorDefault = cursorDefault;
+		f.cursorPointed = cursorPointed;
+		f.cursorWaitingClick = cursorWaitingClick;
+		f.cursorDraggable = cursorDraggable;
+		f.supportReadingKey = supportReadingKey;
+		f.startAnchorEnabled = startAnchorEnabled;
+		f.storeEnabled = storeEnabled;
+		f.restoreEnabled = restoreEnabled;
+		f.currentLabel = currentLabel;
+		f.currentPageName = currentPageName;
+		// [end_store_vars]
+
+		// perl スクリプトによって自動的に処理されないもの、いくつか。
+		// 自動ウェイト
+		f.autoWCWaits = [];
+		f.autoWCWaits.assign(autoWCWaits); // 自動ウェイトのウェイト
+
+		// bgm
+		f.bgm = bgm.store();
+
+		// 効果音
+		f.se = [];
+		for(var i = 0; i<numSEBuffers; i++)
+		{
+			f.se[i] = se[i].store();
+		}
+
+		// メッセージレイヤ
+		f.foreMessageLayers = [];
+		f.backMessageLayers = [];
+		for(var i = 0; i < numMessageLayers; i++)
+		{
+			f.foreMessageLayers[i] = fore.messages[i].store();
+			f.backMessageLayers[i] = back.messages[i].store();
+		}
+
+		// 前景レイヤ
+		f.foreCharacterLayers = [];
+		f.backCharacterLayers = [];
+		for(var i = 0; i < numCharacterLayers; i++)
+		{
+			f.foreCharacterLayers[i] = fore.layers[i].store();
+			f.backCharacterLayers[i] = back.layers[i].store();
+		}
+
+		// 背景レイヤ
+		f.foreBaseLayer = fore.base.store();
+		f.backBaseLayer = back.base.store();
+
+		// ウィンドウキャプション
+		f.caption = caption;
+
+		// コンダクタ
+		f.mainConductor = mainConductor.store();
+		if(!saveMacros) f.mainConductor.macros = void;
+			// マクロ情報を void で上書きすると栞中のマクロ情報は無効になる
+
+		// メッセージ履歴
+		if(historyLayer.storeState)
+		{
+			f.historyData = historyLayer.save();
+		}
+
+		// ムービー
+		if( isMain )
+		{
+			f.movies = [];
+			for( var i = 0; i < numMovies; i++)
+				f.movies[i] = movies[i].store();
+		}
+
+		// storeHook
+		forEachEventHook('onStore',
+			function(handler, f) { handler(f.flags, f.options); } incontextof this,
+			%[flags:f, options:void]);
+	}
+
+	function storeFlags()
+	{
+		// pcflags, pflags に値を書き込む
+
+		// flags -> pflags
+		(Dictionary.assignStruct incontextof pflags)(flags);
+
+		internalStoreFlags(pcflags);
+	}
+
+	function internalRestoreFlags(f, clear = true, elm = void)
+	{
+		// f から情報を読み出す
+		// clear が true ならばメッセージレイヤをクリアする
+		// se, bgm がそれぞれ true ならばその情報も反映させる
+		// backlay が true の場合は、表画面にロードすべきものを裏画面にロードする
+
+		// KAGWindow に関するもの
+		// ここの [start_restore_vars] から [end_restore_vars] で囲まれた部分は
+		// (略)
+		// [start_restore_vars]
+		lastSaveDataName = f.lastSaveDataName if f.lastSaveDataName !== void;
+		quaking = f.quaking if f.quaking !== void;
+		quakeEndTick = f.quakeEndTick if f.quakeEndTick !== void;
+		quakeHorzMax = f.quakeHorzMax if f.quakeHorzMax !== void;
+		quakeVertMax = f.quakeVertMax if f.quakeVertMax !== void;
+		quakePhase = f.quakePhase if f.quakePhase !== void;
+		historyWriteEnabled = f.historyWriteEnabled if f.historyWriteEnabled !== void;
+		historyEnabled = f.historyEnabled if f.historyEnabled !== void;
+		numCharacterLayers = f.numCharacterLayers if f.numCharacterLayers !== void;
+		numMessageLayers = f.numMessageLayers if f.numMessageLayers !== void;
+		currentNum = f.currentNum if f.currentNum !== void;
+		currentPage = f.currentPage if f.currentPage !== void;
+		currentWithBack = f.currentWithBack if f.currentWithBack !== void;
+		chUserMode = f.chUserMode if f.chUserMode !== void;
+		chSpeed = f.chSpeed if f.chSpeed !== void;
+		actualChSpeed = f.actualChSpeed if f.actualChSpeed !== void;
+		beforeNoWaitActualChSpeed = f.beforeNoWaitActualChSpeed if f.beforeNoWaitActualChSpeed !== void;
+		beforeNoWaitChUserMode = f.beforeNoWaitChUserMode if f.beforeNoWaitChUserMode !== void;
+		clickSkipEnabled = f.clickSkipEnabled if f.clickSkipEnabled !== void;
+		nextSkipEnabled = f.nextSkipEnabled if f.nextSkipEnabled !== void;
+		canCancelSkipByClick = f.canCancelSkipByClick if f.canCancelSkipByClick !== void;
+		autoWCEnabled = f.autoWCEnabled if f.autoWCEnabled !== void;
+		autoWCChars = f.autoWCChars if f.autoWCChars !== void;
+		rightClickEnabled = f.rightClickEnabled if f.rightClickEnabled !== void;
+		rightClickCall = f.rightClickCall if f.rightClickCall !== void;
+		rightClickJump = f.rightClickJump if f.rightClickJump !== void;
+		rightClickTarget = f.rightClickTarget if f.rightClickTarget !== void;
+		rightClickStorage = f.rightClickStorage if f.rightClickStorage !== void;
+		rightClickName = f.rightClickName if f.rightClickName !== void;
+		rightClickCurrentMenuName = f.rightClickCurrentMenuName if f.rightClickCurrentMenuName !== void;
+		lastClickGlyphVisible = f.lastClickGlyphVisible if f.lastClickGlyphVisible !== void;
+		cursorDefault = f.cursorDefault if f.cursorDefault !== void;
+		cursorPointed = f.cursorPointed if f.cursorPointed !== void;
+		cursorWaitingClick = f.cursorWaitingClick if f.cursorWaitingClick !== void;
+		cursorDraggable = f.cursorDraggable if f.cursorDraggable !== void;
+		supportReadingKey = f.supportReadingKey if f.supportReadingKey !== void;
+		startAnchorEnabled = f.startAnchorEnabled if f.startAnchorEnabled !== void;
+		storeEnabled = f.storeEnabled if f.storeEnabled !== void;
+		restoreEnabled = f.restoreEnabled if f.restoreEnabled !== void;
+		currentLabel = f.currentLabel if f.currentLabel !== void;
+		currentPageName = f.currentPageName if f.currentPageName !== void;
+		// [end_restore_vars]
+
+		// perl スクリプトによって自動的に処理されないもの、いくつか。
+
+		// 自動ウェイト
+		autoWCWaits.assign(f.autoWCWaits) if f.autoWCWaits !== void;
+
+		// ムービー
+		if( isMain )
+		{
+			for( var i = 0; i < numMovies; i++)
+				movies[i].restore(f.movies[i]);
+		}
+
+		// 背景レイヤ
+		var backlay = elm != void && elm.backlay != void && +elm.backlay;
+		if(backlay)
+		{
+			back.base.restore(f.foreBaseLayer);
+		}
+		else
+		{
+			fore.base.restore(f.foreBaseLayer);
+			back.base.restore(f.backBaseLayer);
+		}
+
+		// メッセージレイヤ
+		allocateMessageLayers(numMessageLayers);
+		if(backlay)
+		{
+			for(var i = 0; i < numMessageLayers; i++)
+			{
+				back.messages[i].restore(f.foreMessageLayers[i]);
+			}
+		}
+		else
+		{
+			for(var i = 0; i < numMessageLayers; i++)
+			{
+				fore.messages[i].restore(f.foreMessageLayers[i]);
+				back.messages[i].restore(f.backMessageLayers[i]);
+			}
+		}
+
+		if(clear)
+		{
+			for(var i = 0; i < numMessageLayers; i++)
+			{
+				fore.messages[i].clear();
+				back.messages[i].clear();
+			}
+			if(historyLayer.storeState)
+			{
+				historyLayer.load(f.historyData);
+			}
+			else
+			{
+				if(historyWriteEnabled)
+				{
+					if(historyLayer.everypage)
+						historyLayer.repage();
+					else
+						historyLayer.reline(), historyLayer.reline();
+				}
+				historyLayer.clearAction();
+			}
+		}
+
+		// 前景レイヤ
+		allocateCharacterLayers(numCharacterLayers);
+		if(backlay)
+		{
+			for(var i = 0; i < numCharacterLayers; i++)
+			{
+				back.layers[i].restore(f.foreCharacterLayers[i]);
+			}
+		}
+		else
+		{
+			for(var i = 0; i < numCharacterLayers; i++)
+			{
+				fore.layers[i].restore(f.foreCharacterLayers[i]);
+				back.layers[i].restore(f.backCharacterLayers[i]);
+			}
+		}
+
+		// quake 関連
+		restoreQuake();
+
+		// bgm
+		if(elm === void || elm.bgm === void || +elm.bgm)
+		{
+			bgm.restore(f.bgm);
+		}
+
+		// 効果音
+		if(elm === void || elm.se === void || +elm.se)
+		{
+			for(var i = 0; i<numSEBuffers; i++)
+			{
+				se[i].restore(f.se[i]);
+			}
+		}
+
+		// ウィンドウキャプション
+		caption = f.caption;
+		System.title = caption;
+
+		// current の設定し直し
+		current = (currentPage?back:fore).messages[currentNum];
+
+		// 右クリックメニュー名
+		if(typeof this.rightClickMenuItem != "undefined")
+			rightClickMenuItem.caption = rightClickCurrentMenuName;
+
+		// restoreHook
+		forEachEventHook('onRestore',
+			function(handler, f) { handler(f.flags, f.clear, f.options); } incontextof this,
+			%[flags:f, clear:clear, options:elm]);
+
+	}
+
+	function restoreFlags()
+	{
+		// pcflags, pflags から情報を読み出す
+
+		// ロード時、ムービーのピリオドイベント情報をクリアする
+		purgeMoviePeriod();
+
+		// スナップショットの破棄
+		freeSnapshot();
+
+		// トランジション、自動移動の停止
+		stopAllTransitions();
+		stopAllMoves();
+
+		// クリック待ち記号を隠す
+		hideClickGlyphs();
+
+		// メッセージ履歴を隠す
+		hideHistory();
+
+		// スキップのキャンセル
+		cancelSkip();
+
+		// pflags -> flags
+		(Dictionary.assignStruct incontextof flags)(pflags);
+
+		// 栞管理関連
+		storeLabelPassed = true;
+		nextRecordHistory = false;
+		stablePosibility = false;
+
+		// コンダクタ
+		currentRecordName = "";
+		mainConductor.restore(pcflags.mainConductor);
+		extraConductor.clear();
+		setConductorToMain();
+
+		// 読み込み
+		internalRestoreFlags(pcflags);
+
+		// メニュー関連
+		setMenuAccessibleAll();
+
+		// 実行開始
+		processGo();
+	}
+
+	function clearVariables()
+	{
+		// ゲーム変数のクリア
+		(Dictionary.clear incontextof flags)();
+	}
+
+	//--------------------------------------------------------- 通過記録管理 --
+
+	function pushHistoryOfStore()
+	{
+		// 通過記録を行う
+		// pflags, pcflags に情報を格納した後に呼ぶこと
+
+		if(nextRecordHistory)
+		{
+			if(stablePosibility)
+			{
+				// stablePosibility が false の場合は、
+				// そこのラベルで通過記録を行っても
+				// そこよりも前に戻るすべがないので通過記録をしない
+
+				// 辞書配列を作成
+				var dic = %[];
+
+				// user と core を記録
+				dic.user = %[];
+				(Dictionary.assignStruct incontextof dic.user)(pflags);
+				dic.core = %[];
+				(Dictionary.assignStruct incontextof dic.core)(pcflags);
+
+				// dic を historyOfStore の先頭に挿入
+				historyOfStore.insert(0, dic);
+
+				// はみ出た分を削除
+				if(historyOfStore.count > maxHistoryOfStore)
+					historyOfStore.count = maxHistoryOfStore;
+			}
+
+			nextRecordHistory = false;
+		}
+	}
+
+	function setToRecordHistory()
+	{
+		// 次の「保存可能なラベル」通過時に
+		// 通過記録を行うように設定する
+		// ( ただし、そのときに記録されるのは、現在の状態 )
+		nextRecordHistory = true;
+	}
+
+	function isHistoryOfStoreAlive()
+	{
+		// 通過記録が利用可能かどうかを返す
+		return historyOfStore.count;
+	}
+
+	function goBackHistory(ask = true)
+	{
+		// 通過記録をたどり、戻る
+
+		if(!isHistoryOfStoreAlive())
+			return false;
+
+		var result;
+		if(ask)
+		{
+			var prompt = "「"+ historyOfStore[0].core.currentPageName + "」まで戻りますか?";
+			result = askYesNo(prompt);
+		}
+		else
+		{
+			result = true;
+		}
+
+		if(result)
+		{
+			// user と core を pflags, pcflags に戻す
+			(Dictionary.assignStruct incontextof pflags)(historyOfStore[0].user);
+			(Dictionary.assignStruct incontextof pcflags)(historyOfStore[0].core);
+
+			// 記録の先頭を削除する
+			historyOfStore.erase(0);
+
+			// データを元に、栞をたどる動作をする
+			restoreFlags();
+
+			return true;
+		}
+		return false;
+	}
+
+	//--------------------------------------------------------------- 栞管理 --
+
+	function createBookMarkSubMenus()
+	{
+		// 「栞をたどる」「栞をはさむ」以下にサブメニュー項目を追加
+		if(freeSaveDataMode) return; // フリーセーブモードではなにもしない
+		if(typeof this.storeMenu !== "undefined" && storeMenu.visible)
+		{
+			for(var i = 0; i<numBookMarks; i++)
+			{
+				var item;
+				storeMenu.add(item = new KAGMenuItem(this, string i, 0, onBookMarkStore,
+					false));
+				item.bmNum = i;
+				item.orgEnabled = false;
+			}
+		}
+		if(typeof this.restoreMenu !== "undefined" && restoreMenu.visible)
+		{
+			for(var i = 0; i<numBookMarks; i++)
+			{
+				var item;
+				restoreMenu.add(item = new KAGMenuItem(this, string i, 0, onBookMarkRestore,
+					false));
+				item.bmNum = i;
+				item.orgEnabled = false;
+			}
+		}
+	}
+
+	function setBookMarkMenuCaptions()
+	{
+		// 「栞をたどる」「栞をはさむ」以下のサブメニューに
+		// キャプションを設定
+
+		// 栞を挟む
+		if(typeof this.storeMenu !== "undefined")
+		{
+			var children = storeMenu.children;
+			for(var i = children.count - 1; i >= 0; i--)
+			{
+				if(bookMarkDates[i] != '') // 空文字列の場合は栞がないということ
+				{
+					// 栞が存在する
+					var caption;
+					if(showBookMarkDate) caption = bookMarkDates[i] + " ";
+					caption += bookMarkNames[i];
+					var item = children[i];
+					item.caption = caption;
+					item.enabled = false;
+					item.orgEnabled = !bookMarkProtectedStates[i];
+				}
+				else
+				{
+					// 栞が存在しない
+					var item = children[i];
+					item.caption = "(未設定)";
+					item.enabled = false;
+					item.orgEnabled = !bookMarkProtectedStates[i];
+				}
+			}
+		}
+
+		// 栞をたどる
+		if(typeof this.restoreMenu !== "undefined")
+		{
+			var children = restoreMenu.children;
+			for(var i = children.count - 1; i >= 0; i--)
+			{
+				if(bookMarkDates[i] != '') // 空文字列の場合は栞がないということ
+				{
+					// 栞が存在する
+					var caption;
+					if(showBookMarkDate) caption = bookMarkDates[i] + " ";
+					caption += bookMarkNames[i];
+					var item = restoreMenu.children[i];
+					item.caption = caption;
+					item.enabled = false;
+					item.orgEnabled = true;
+				}
+				else
+				{
+					var item = restoreMenu.children[i];
+					item.caption = "(未設定)";
+					item.enabled = false;
+					item.orgEnabled = false;
+				}
+			}
+		}
+		setMenuAccessibleAll();
+	}
+
+	function setBookMarkProtectedState(num, s)
+	{
+		// n 番の栞の保護フラグを設定する
+		// s = true ならば栞に書き込み保護をする
+		bookMarkProtectedStates[num] = s;
+		setBookMarkMenuCaptions();
+	}
+
+	function onBookMarkStore(sender)
+	{
+		// 栞をはさむメニューが選択された
+//		if(!sender.parent.accessEnabled) return;
+		saveBookMarkWithAsk(sender.bmNum);
+	}
+
+	function onBookMarkRestore(sender)
+	{
+		// 栞をたどるメニューが選択された
+//		if(!sender.parent.accessEnabled) return;
+		loadBookMarkWithAsk(sender.bmNum);
+	}
+
+	function getBookMarkPageName(num)
+	{
+		// 栞番号 num のブックマーク名を得る
+		if(bookMarkDates[num] != '') // 空文字列の場合は栞がないということ
+			return bookMarkNames[num];
+		return "(未設定)";
+	}
+
+	function getBookMarkDate(num)
+	{
+		// 栞番号 num の日付を得る
+		return bookMarkDates[num];
+	}
+
+	function getBookMarkFileNameAtNum(num)
+	{
+		if(num >= 999) // 999 番以降は特殊なデータに用いるので
+			return saveDataLocation + "/" + dataName + num + ".ksd";
+		else
+			return saveDataLocation + "/" + dataName + num + (saveThumbnail?".bmp":".kdt");
+	}
+
+	function lockSnapshot()
+	{
+		// スナップショットをロックする
+		// 初めてスナップショットがロックされた時点での画面を保存する
+		if(snapshotLockCount == 0)
+		{
+			if(snapshotLayer === void)
+				snapshotLayer = new Layer(this, primaryLayer);
+			snapshotLayer.setImageSize(scWidth, scHeight);
+			snapshotLayer.face = dfAlpha;
+			snapshotLayer.piledCopy(0, 0, kag.fore.base, 0, 0, scWidth, scHeight);
+		}
+		snapshotLockCount ++;
+	}
+
+	function unlockSnapshot()
+	{
+		// スナップショットのロックを解除する
+		if(snapshotLockCount == 0)
+			throw new Exception("snapshotLockCount がアンダーフローしました");
+		snapshotLockCount --;
+		if(snapshotLockCount == 0)
+		{
+			if(snapshotLayer !== void)
+				invalidate snapshotLayer, snapshotLayer = void;
+		}
+	}
+
+	function calcThumbnailSize()
+	{
+		// サムネイルのサイズを計算する
+		// 横幅は 133 に
+		var ratio = scHeight / scWidth;
+		var w = thumbnailWidth;
+		var h = (int)(w * ratio);
+
+		// サムネイル用ビットマップのサイズを計算
+		// サムネイル用画像は 256 色 BMP または 24bit フルカラー BMP
+		var size;
+		if (thumbnailDepth == 8)
+		  size = ((((w - 1) >> 2) + 1) << 2) * h + 1024 + 54;
+		else
+		  size = (((w * 3 + 3) >> 2) << 2) * h + 54;
+
+		return %[width : w, height : h, size : size];
+	}
+
+	function freeSnapshot()
+	{
+		// スナップショットを強制的に破棄し、snapshotLockCount を 0 に設定する
+		snapshotLockCount = 0;
+		if(snapshotLayer !== void)
+			invalidate snapshotLayer, snapshotLayer = void;
+	}
+
+	function saveBookMarkToFile(fn, savehist = true)
+	{
+		// ファイル fn に栞を保存する
+		if(readOnlyMode) return false;
+		pcflags.storeTime = (new Date()).getTime(); // 日付を保存
+
+		// セーブデータをまとめる
+		var data = %[];
+		data.id = saveDataID;
+		data.core = pcflags;
+		data.user = pflags;
+		if(savehist) data.history = historyOfStore;
+
+		if(saveThumbnail)
+		{
+			// サムネイルを保存
+			lockSnapshot();
+			try
+			{
+				// サムネイルのサイズまで縮小
+				var size = calcThumbnailSize();
+				var tmp = new Layer(this, primaryLayer);
+				try
+				{
+					tmp.setImageSize(size.width, size.height);
+					tmp.face = dfAlpha;
+					tmp.stretchCopy(0, 0, size.width, size.height, snapshotLayer,
+						0, 0, snapshotLayer.imageWidth, snapshotLayer.imageHeight, stLinear);
+					/*
+					// サムネイル画像をセピア調にして保存する場合はコメントアウトを解除
+					tmp.doGrayScale();
+					tmp.adjustGamma(
+									1.3, 0, 255,  // R gamma, floor, ceil
+									1.0, 0, 255,  // G gamma, floor, ceil
+									0.8, 0, 255); // B gamma, floor, ceil
+					*/
+					try
+					{
+						// サムネイルを保存
+						tmp.saveLayerImage(fn, "bmp" + thumbnailDepth);
+
+						// データを保存
+						var mode = saveDataMode;
+						mode += "o" + size.size; // モード文字列に 書き込みオフセットを指定
+						(Dictionary.saveStruct incontextof data)(fn, mode);
+					}
+					catch(e)
+					{
+						invalidate tmp;
+						unlockSnapshot();
+						System.inform("ファイルに保存できません (ファイルを開けないか、"
+							"書き込み禁止です)");
+						return false;
+					}
+				}
+				catch(e)
+				{
+					invalidate tmp;
+					throw e;
+				}
+				invalidate tmp;
+			}
+			catch(e)
+			{
+				unlockSnapshot();
+				throw e;
+			}
+			unlockSnapshot();
+		}
+		else
+		{
+			// 通常のファイルに保存
+			try
+			{
+				(Dictionary.saveStruct incontextof data)(fn, saveDataMode);
+			}
+			catch(e)
+			{
+				System.inform("ファイルに保存できません (ファイルを開けないか、"
+					"書き込み禁止です)");
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	function saveBookMark(num, savehist = true)
+	{
+		// 栞番号 num に栞を保存する
+		if(readOnlyMode) return false;
+		if(bookMarkProtectedStates[num]) return false;
+
+		var ret = saveBookMarkToFile(getBookMarkFileNameAtNum(num), savehist);
+		if(ret)
+		{
+			// メニュー / bookMarkNames / bookMarkDates を更新
+			getBookMarkInfoFromData(pcflags, num);
+		}
+		return ret;
+	}
+
+	function getBookMarkInfoFromData(dic, num)
+	{
+		// 辞書配列 dic から栞のページ名と日付を読み出し、
+		// bookMarkDates[num] や bookMarkNames[num] に設定する
+		if(num < numBookMarks)
+		{
+			bookMarkNames[num] = dic.currentPageName;
+			var date = new Date();
+			date.setTime(dic.storeTime);
+			date = "%04d/%02d/%02d %02d:%02d".sprintf(
+				date.getYear(), date.getMonth() + 1, date.getDate(),
+				date.getHours(), date.getMinutes() );
+			bookMarkDates[num] = date;
+			setBookMarkMenuCaptions();
+			saveSystemVariables();
+		}
+	}
+
+	function loadBookMarkFromFile(fn, loaduser = true)
+	{
+		// ファイル fn から栞を読み込む
+		// loaduser が false の時は user を読み込まない
+		try
+		{
+			if(!Storages.isExistentStorage(fn)) return false; //ファイルがない
+
+			var data;
+
+			var modestr;
+
+			if(saveThumbnail)
+			{
+				// 指定オフセットからデータを読み込む
+				modestr += "o" + calcThumbnailSize().size;
+			}
+
+			data = Scripts.evalStorage(fn, modestr);
+
+			if(data.id != saveDataID)
+			{
+				System.inform("他のシステムのデータを読み込もうとしました", "エラー");
+				return false;
+			}
+
+			pcflags = data.core;
+			pcflags = %[] if pcflags === void;
+			if(loaduser)
+			{
+				pflags = data.user;
+				pflags = %[] if pflags === void;
+			}
+			else
+			{
+				(Dictionary.assignStruct incontextof pflags)(flags);
+			}
+			historyOfStore = data.history;
+			historyOfStore = [] if historyOfStore === void;
+		}
+		catch(e)
+		{
+			System.inform("栞を読み込めないか、栞が"
+				"壊れているか、あるいは他の形式の栞データ"
+				"です(" + e.message + ")", "エラー");
+			return false;
+		}
+
+		restoreFlags();
+		return true;
+	}
+
+	function loadBookMark(num, loaduser = true)
+	{
+		// 栞番号 num からデータを読み出す
+		return loadBookMarkFromFile(getBookMarkFileNameAtNum(num), loaduser);
+	}
+
+	function saveBookMarkWithAsk(num)
+	{
+		// 栞番号 num に栞を設定する
+		// そのとき、設定するかどうかをたずねる
+		if(readOnlyMode) return false;
+		if(bookMarkProtectedStates[num]) return false;
+		var prompt = "栞 ";
+		if(num < numBookMarks) prompt += (num + 1);
+		if(bookMarkDates[num] != "") // bookMarkDates が空文字の場合は栞は存在しない
+			prompt += "「" + bookMarkNames[num] + "」";
+		prompt += "に「"+ pcflags.currentPageName + "」をはさみますか?";
+		var result = askYesNo(prompt);
+		if(result) return saveBookMark(num);
+		return false;
+	}
+
+	function loadBookMarkWithAsk(num)
+	{
+		// 栞番号 num から栞を読み出す
+		// そのとき、読み出すかどうかをたずねる
+		if(num < numBookMarks && bookMarkDates[num] == "") // bookMarkDates が空文字の場合は栞は存在しない
+			return false;
+		var prompt = "栞 ";
+		if(num < numBookMarks) prompt += (num + 1);
+		prompt += "「"+ bookMarkNames[num] + "」をたどりますか?";
+		var result = askYesNo(prompt);
+		if(result) return loadBookMark(num);
+		return false;
+	}
+
+	function saveBookMarkToFileWithAsk()
+	{
+		// 任意のファイルに栞を保存する
+		// currentPageName をファイル名として適合するように
+		// 変形する
+		var invalid = "\\/:,;*?\"<>!.";
+		var valid = "￥／：，；＊？”＜＞！．";
+
+		var initialname = saveDataLocation + "/";
+		var through = false;
+		var orgname = currentPageName;
+
+		if(lastSaveDataNameGlobal != "")
+		{
+			try
+			{
+				initialname = Storages.extractStoragePath(lastSaveDataNameGlobal);
+			}
+			catch(e)
+			{
+				initialname = saveDataLocation + "/";
+			}
+		}
+
+		if(orgname == "")
+		{
+			// 栞の見出しがないので
+			if(lastSaveDataName == "")
+				orgname = System.title; // System.title を代わりに使う
+			else
+				initialname = lastSaveDataName, through = true;
+		}
+
+		if(!through)
+		{
+			var length = orgname.length;
+			for(var i = 0; i < length; i++)
+			{
+				var ch = orgname[i];
+					var ind = invalid.indexOf(ch);
+				if(ind != -1)
+					initialname += valid[ind];
+				else if(#ch >= 32)
+					initialname += ch;
+			}
+		}
+
+		// 保存するファイル名を得る
+		var selectdata = %[
+			title:"栞をはさむ",
+			filter: [saveThumbnail ?
+					"サムネイル画像付き栞データ(*.bmp)|*.bmp" :
+					"栞データ(*.kdt)|*.kdt"],
+			filterIndex : 1,
+			name : initialname,
+			initialDir : "",
+			defaultExt : saveThumbnail?"bmp":"kdt",
+			save : true,
+		];
+		if(Storages.selectFile(selectdata))
+		{
+			// 保存
+			saveBookMarkToFile(lastSaveDataName = lastSaveDataNameGlobal = selectdata.name);
+			lastSaveDataName = Storages.chopStorageExt(lastSaveDataName);
+		}
+	}
+
+	function loadBookMarkFromFileWithAsk()
+	{
+		// 任意のファイルから栞を読み込む
+		var initialdir = "";
+		if(lastSaveDataNameGlobal == "")
+			initialdir = saveDataLocation + "/";
+
+		var selectdata = %[
+			title:"栞をたどる",
+			filter: [saveThumbnail ?
+					"サムネイル画像付き栞データ(*.bmp)|*.bmp" :
+					"栞データ(*.kdt)|*.kdt"],
+			filterIndex : 1,
+			name : lastSaveDataNameGlobal,
+			initialDir : initialdir,
+			defaultExt : saveThumbnail?"bmp":"kdt",
+			save : false,
+		];
+		if(Storages.selectFile(selectdata))
+		{
+			loadBookMarkFromFile(lastSaveDataName = lastSaveDataNameGlobal = selectdata.name);
+			lastSaveDataName = Storages.chopStorageExt(lastSaveDataName);
+		}
+	}
+
+
+	function copyBookMark(from, to)
+	{
+		// 栞番号 from から栞番号 to に栞をコピーする
+		if(readOnlyMode) return false;
+		if(bookMarkProtectedStates[to]) return;
+
+		var fn = getBookMarkFileNameAtNum(from);
+
+		if(!Storages.isExistentStorage(fn)) return; //ファイルがない
+
+		var data = Scripts.evalStorage(fn);
+
+		fn = getBookMarkFileNameAtNum(to);
+
+		(Dictionary.saveStruct incontextof data)(fn, saveDataMode);
+		getBookMarkInfoFromData(data.core, to);
+	}
+
+	function eraseBookMark(num)
+	{
+		// 栞を消す
+		// num < numBookMarks の時にしか動作しないようになったので注意
+		if(num < numBookMarks)
+		{
+			if(!bookMarkProtectedStates[num])
+			{
+				bookMarkDates[num] = "";
+				setBookMarkMenuCaptions();
+			}
+		}
+	}
+
+	function tempDisableStore(elm)
+	{
+		// 栞を一時的に保存不可能にする
+		storeEnabled = true;
+		if(elm.store === void)
+			storeLabelPassed = false;
+		else
+			storeLabelPassed = !(+elm.store);
+		if(elm.restore == void)
+			restoreEnabled = true;
+		else
+			restoreEnabled = !(+elm.restore);
+		setMenuAccessibleAll();
+	}
+
+	function setStoreEnabled(enabled)
+	{
+		// 栞メニューの有効/無効の設定
+		storeEnabled = enabled;
+		restoreEnabled = enabled;
+		setMenuAccessibleAll();
+	}
+
+	function setStartAnchorEnabled(enabled)
+	{
+		// 「最初に戻る」の有効/無効の設定
+		startAnchorEnabled = enabled;
+		if(enabled) saveBookMark(999, false); // 999 番に保存
+		setMenuAccessibleAll();
+	}
+
+	function goToStart()
+	{
+		// 最初に戻る
+		if(!startAnchorEnabled) return;
+		loadBookMark(999, false); // 栞を読み込む
+	}
+
+	function goToStartWithAsk()
+	{
+		// 最初に戻る(確認あり)
+		var result = askYesNo("最初に戻ります。よろしいですか ?");
+		if(result) goToStart();
+	}
+
+	function tempSave(num)
+	{
+		// tempBookMarks[num] に現在の状態を保存する
+		tempBookMarks[num] = %[];
+		internalStoreFlags(tempBookMarks[num]);
+	}
+
+	function tempLoad(num, elm)
+	{
+		// tempBookMarks[num] から状態を読み込む
+		internalRestoreFlags(tempBookMarks[num], false, elm);
+	}
+
+	function restoreBookMark(num, ask = true)
+	{
+		// KAG 2.x 互換用
+		if(ask)
+			return loadBookMarkWithAsk(num);
+		else
+			return loadBookMark(num);
+	}
+
+	function storeBookMark(num, ask = true)
+	{
+		// KAG 2.x 互換用
+		if(ask)
+			return saveBookMarkWithAsk(num);
+		else
+			return saveBookMark(num);
+	}
+
+	//------------------------------------------------- 未読/既読/ラベル記録 --
+
+	function setRecordLabel(storage, label)
+	{
+		// 現在のラベルを設定する
+		if(autoRecordPageShowing)
+		{
+			if(label != '')
+			{
+				if(label[0] == '*') label = label.substring(1);
+				if(label[1] == '-') return; // ローカルラベル
+			}
+			currentRecordName = 'trail_' + Storages.chopStorageExt(
+				Storages.extractStorageName(storage)) + '_' + label;
+		}
+	}
+
+	function incRecordLabel(count)
+	{
+		// sflags[currentRecordName]++
+		if(autoRecordPageShowing)
+		{
+			if(currentRecordName != "")
+			{
+				if(count)
+				{
+					if(sflags[currentRecordName] === void)
+						sflags[currentRecordName] = 0;
+					sflags[currentRecordName]++;
+				}
+				currentRecordName = "";
+			}
+		}
+	}
+
+	//------------------------------------------- システム全体に関係するもの --
+
+	function setTitle(title)
+	{
+		// タイトルを設定
+		if(isMain) System.title = title;
+		caption = title;
+	}
+
+	function setCursor(elm)
+	{
+		// マウスカーソルの設定
+		var conv = function(variable, value)
+		{
+			if(value !== void)
+			{
+				if(!(typeof value == "String" &&
+					(value.indexOf('.cur')!=-1 || value.indexOf('.ani')!=-1) ))
+						value = +value;
+				this[variable] = value;
+			}
+		} incontextof this;
+
+		conv('cursorDefault', elm['default']); 
+		conv('cursorPointed', elm.pointed);
+		conv('cursorWaitingClick', elm.click);
+		conv('cursorDraggable', elm.draggable);
+		fore.base.setDefaultCursor(cursorDefault);
+		back.base.setDefaultCursor(cursorDefault);
+	}
+
+	//---------------------------------------------------- トリガ管理(TJS用) --
+
+	function waitTrigger(elm)
+	{
+		// elm.name で示されたトリガを待つ
+		if((elm.canskip !== void && +elm.canskip) && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ動作中
+				if(elm.onskip !== void) Scripts.eval(elm.onskip);
+				return 0; // すぐに返る
+			}
+			conductor.wait(%[
+				click : function(arg)
+				{
+					if(arg !== void) Scripts.eval(arg);
+				} incontextof this,
+				click_arg : elm.onskip,
+				elm.name => function
+				{
+				} incontextof this
+				]);
+		}
+		else
+		{
+			conductor.wait(%[
+				elm.name => function
+				{
+				} incontextof this
+				]);
+		}
+		return -2;
+	}
+
+	function trigger(name)
+	{
+		// name で示したトリガを発動する
+		conductor.trigger(name);
+	}
+
+	//------------------------------------------------------- メッセージ履歴 --
+
+	function showHistory()
+	{
+		// メッセージ履歴レイヤを表示する
+		historyLayer.parent = fore.base; // メッセージ履歴レイヤの親も再設定
+		historyLayer.absolute = 2000000;
+		historyLayer.dispInit();
+		historyShowing = true;
+		if(typeof this.showHistoryMenuItem != "undefined")
+			showHistoryMenuItem.checked = true;
+		setMenuAccessibleAll();
+	}
+
+	function hideHistory()
+	{
+		// メッセージ履歴レイヤを非表示にする
+		historyLayer.dispUninit();
+		historyShowing = false;
+		if(typeof this.showHistoryMenuItem != "undefined")
+			showHistoryMenuItem.checked = false;
+		setMenuAccessibleAll();
+		lastHistoryHiddenTick = System.getTickCount();
+		conductor.trigger('history'); // 'history' を送る
+	}
+
+	function setHistoryOptions(elm)
+	{
+		// elm からメッセージ履歴レイヤのオプションを設定する
+		historyWriteEnabled = +elm.output if elm.output !== void;
+		historyEnabled = +elm.enabled if elm.enabled !== void;
+		if(elm.enabled !== void && !historyEnabled)
+			historyLayer.clearAction();
+		historyLayer.setOptions(elm); // その他のオプション
+		setMenuAccessibleAll();
+	}
+
+	function showHistoryByScenario(elm)
+	{
+		// メッセージ履歴をシナリオ中から表示させる
+		showHistory();
+		conductor.wait(%[ // コンダクタを待ちに
+			history : function
+			{
+				// やることなし
+			} incontextof this
+			]);
+		return -2; // break
+	}
+
+	//-------------------------------------------------------------- process --
+
+	function process(file, label, countpage = true, immediate = false)
+	{
+		// 指定ファイル、指定ラベルから実行を開始する
+		if(!usingExtraConductor) incRecordLabel(countpage);
+		setUserSpeed();
+
+		if(file != '')
+		{
+			// ファイルを読み込み
+			conductor.loadScenario(file);
+		}
+
+		if(label != '')
+		{
+			// ラベルに移動する
+			conductor.goToLabel(label);
+		}
+
+		if(isFirstProcess)
+		{
+			storeFlags(); // 一番最初の状態をストア
+			isFirstProcess = false;
+		}
+
+
+		dm("処理を開始します");
+		inSleep = false;
+		notifyRun();
+		if(conductor.status != conductor.mRun) conductor.run(immediate); // 実行開始
+	}
+
+	function processGo()
+	{
+		// コンダクタを現在位置から実行開始させる
+		dm("処理を開始します");
+		inSleep = false;
+		notifyRun();
+		conductor.run(false); // 実行開始
+	}
+
+	function processCall(file, label)
+	{
+		// 指定ファイル、指定ラベルを呼ぶ
+		// incRecordLabel(); は呼ばないので注意
+
+		if(file != '')
+		{
+			// ファイルを読み込み
+			conductor.loadScenario(file);
+		}
+
+		inSleep = false;
+		notifyRun();
+		conductor.callLabel(label); // 実行開始
+		dm("処理を開始します");
+		if(conductor.status != conductor.mRun) conductor.run();
+	}
+
+	//------------------------------------------------- コンダクタのイベント --
+
+	function onConductorScenarioLoad(name)
+	{
+		// コンダクタが新しいシナリオファイルを読み込む前によばれる。
+		// name は読み込もうとしたシナリオファイル。
+		// 戻り値に文字列を返すと、それをシナリオとして
+		// ファイルの代わりに使うようになるので、ここにフィルタを書くこ
+		// とができる。
+		// true を返すと通常のシナリオファイル読み込みとなる。
+		return true;
+	}
+
+
+	function onConductorScenarioLoaded(name)
+	{
+		// コンダクタが新しいシナリオファイルを読み込んだ
+//		if(!usingExtraConductor) incRecordLabel(true);
+		return true;
+	}
+
+	function onConductorLabel(label, page)
+	{
+		// コンダクタがラベルを通過した
+		if(!usingExtraConductor)
+		{
+			incRecordLabel(true);
+			setRecordLabel(conductor.curStorage, label);
+		}
+		setUserSpeed();
+		if(!usingExtraConductor)
+		{
+			if(!getCurrentRead() && skipMode != 4)
+				cancelSkip(); // 未読なのでスキップを停止
+			currentLabel = label;
+		}
+		if(page !== void && page !== '')
+		{
+			if(page[0] == '&') page = Scripts.eval((page.substring(1)));
+			currentPageName = page;
+		}
+		if(page !== void)
+		{
+			pushHistoryOfStore();
+			stablePosibility = false;
+			dm(conductor.curStorage + " : ラベル/ページ : " + label + "/" + currentPageName);
+			if(usingExtraConductor) throw new Exception("右クリックサブルーチン内/extraCondutor"
+				"サブルーチン内では保存可能なラベルを記述できません");
+			storeFlags(), storeLabelPassed = true, setMenuAccessibleAll();
+			if(recordHistoryOfStore == 1) // 1 : 保存可能なラベルごと
+				setToRecordHistory();
+		}
+		return true;
+	}
+
+	function onConductorJump(elm)
+	{
+		// コンダクタで jump タグを処理するとき
+		if(!usingExtraConductor) incRecordLabel(elm.countpage === void || +elm.countpage);
+		return true;
+	}
+
+	function onConductorCall(elm)
+	{
+		// コンダクタが call タグを処理するとき
+		if(!usingExtraConductor) incRecordLabel(elm.countpage !== void && +elm.countpage);
+		return true;
+	}
+
+	function onConductorReturn(elm)
+	{
+		// コンダクタが return タグを処理するとき
+		if(!usingExtraConductor) incRecordLabel(elm.countpage === void || +elm.countpage);
+		if(conductor === extraConductor)
+		{
+			// extraConductor サブルーチン用のコンダクタから呼ばれている
+			if(conductor.callStackDepth == 1)
+			{
+				// つまり、最終の return が実行されたと言うこと
+				dm("extraConductor サブルーチンから戻ります ...");
+				var run;
+				if(elm.storage !== void || elm.target !== void) run = true; else run = false;
+				returnExtraConductor(run);
+				if(elm.storage !== void) conductor.loadScenario(elm.storage);
+				if(elm.target !== void) conductor.goToLabel(elm.target);
+				setRecordLabel(conductor.curStorage, currentLabel = conductor.curLabel);
+				if(run)
+				{
+					notifyRun();
+					conductor.run();
+				}
+				isLeavePeriodEvent = false;
+				if(elm.storage !== void || elm.target !== void)
+				{	// returnで元の位置以外に戻る時はピリオドイベントをクリアする。
+					holdPeriodEventQueue.clear();
+					isWaitPeriodEvent = false;
+				}
+				if( isWaitPeriodEvent == true )
+				{	// [wp]でピリオドイベント待ちをしている時のみ、トリガーする
+					fireMoviePeriodFromQueue();
+				}
+				return false; // return は実行しない
+			}
+		}
+		return true;
+	}
+	function purgeMoviePeriod()
+	{
+		isLeavePeriodEvent = false;
+		holdPeriodEventQueue.clear();
+		isWaitPeriodEvent = false;
+		waitedPeriodEventStorageName = void;
+	}
+	function fireMoviePeriodFromQueue()
+	{
+		var retVal = false;
+		if( holdPeriodEventQueue.count > 0 )
+		{
+			if( waitedPeriodEventStorageName == conductor.curStorage && conductor == mainConductor )
+			{
+				for( var i = 0; i < holdPeriodEventQueue.count; i++ )
+				{
+					conductor.trigger( holdPeriodEventQueue[i] );
+					retVal = true;
+				}
+			}
+			holdPeriodEventQueue.clear();
+		}
+		return retVal;
+	}
+
+	function onConductorAfterReturn()
+	{
+		// コンダクタが return タグを実行した後
+		if(!usingExtraConductor)
+		{
+			setRecordLabel(conductor.curStorage, currentLabel = conductor.curLabel);
+		}
+		setUserSpeed();
+		if(!usingExtraConductor)
+		{
+			if(!getCurrentRead() && skipMode != 4)
+				cancelSkip(); // 未読なのでスキップを停止
+		}
+	}
+
+
+	function onConductorScript(script, scriptname, lineofs)
+	{
+		// iscript タグ
+		try
+		{
+			Scripts.exec(script, scriptname, lineofs);
+		}
+		catch(e)
+		{
+			throw new Exception(scriptname + " の 行 " + lineofs + " から始まる"
+				" iscript ブロックでエラーが発生しました。"
+				"\n( 詳細はコンソールを参照してください )\n" + e.message);
+		}
+		return true;
+	}
+
+	function onConductorUnknownTag(tagname, elm)
+	{
+		// 不明なタグがあった場合
+		throw new Exception("タグ/マクロ \"" + tagname + "\" は存在しません");
+		return 0; // この戻り値は、各タグハンドラが返す物とおなじ
+	}
+
+	//----------------------------------------------------------- stable/run --
+
+	function notifyStable()
+	{
+		// システムが安定(クリック待ち/停止)したときに、ハンドラを呼ぶ
+		if(!inStable)
+		{
+			inStable = true;
+			var handlers = stableHandlers;
+			for(var i = handlers.count-1; i>=0; i--)
+				handlers[i]();
+
+			// stableHook
+			forEachEventHook('onStableStateChanged',
+				function(handler, f) { handler(f.stable); } incontextof this,
+				%[stable:true]);
+		}
+	}
+
+	function notifyRun()
+	{
+		// システムが走り始めたときに、ハンドラを呼ぶ
+		if(inStable)
+		{
+			inStable = false;
+			var handlers = runHandlers;
+			for(var i = handlers.count-1; i>=0; i--)
+				handlers[i]();
+
+			// runHook
+			forEachEventHook('onStableStateChanged',
+				function(handler, f) { handler(f.stable); } incontextof this,
+				%[stable:false]);
+
+			if(autoMode) hideMouseCursor();
+		}
+	}
+
+	function defaultStableHandler()
+	{
+		// デフォルトの stable ハンドラ
+		setMenuAccessibleAll();
+	}
+
+	function defaultRunHandler()
+	{
+		// デフォルトの run ハンドラ
+		hideHistory();
+		hideClickGlyphs();
+		showMessageLayerByUser();
+		setMenuAccessibleAll();
+	}
+
+	//----------------------------------------------------------- 文字列入力 --
+
+	var inputTemp;
+	function inputString(elm)
+	{
+		// 文字列を入力する
+		var name = elm.name;
+		var initial = Scripts.eval(name);
+		var res = System.inputString(elm.title, elm.prompt, initial);
+		if(res !== void)
+		{
+			// name に res を代入する
+			inputTemp = res;
+			Scripts.eval(("(" + name + ") = kag.inputTemp"));
+		}
+	}
+
+	//-------------------------------------------------- extraConductor 処理 --
+
+	function callExtraConductor(storage, label, onreturn)
+	{
+		// extraConductor を使ってサブルーチンを呼び出す
+		onExtraConductorReturn = onreturn;
+		inSleepBeforeExtraConductor = inSleep; // inSleep 保存
+		storeMessageLayerSelProcessLock(); // メッセージレイヤの storeSelProcessLock を呼ぶ
+		conductor = extraConductor; // コンダクタを切り替える
+		(Dictionary.assign incontextof extraConductor.macros)(mainConductor.macros);
+			// マクロはコピー
+		usingExtraConductor = true;
+		if(storage == '')
+		{
+			// ストレージ指定がないので現在のストレージを読み込ませる
+			storage = mainConductor.curStorage;
+		}
+
+		// 呼び出す
+		conductor.clearCallStack();
+		processCall(storage, label);
+	}
+
+	function returnExtraConductor(run)
+	{
+		// extraConductor のサブルーチンから戻る
+		// run が true の場合は 待機状態の復帰は行わない
+
+		conductor.sleep(); // 停止
+		conductor.interrupt();
+			// interrupt は コンダクタのイベント内でコンダクタの実行を
+			// 停止させるためのメソッド
+		conductor = mainConductor; // コンダクタを切り替え
+		(Dictionary.assign incontextof mainConductor.macros)(extraConductor.macros);
+			// マクロはコピー
+		usingExtraConductor = false;
+		if(!run)
+		{	restoreClickGlyphState(); // クリック待ち記号の復帰
+			inSleep = inSleepBeforeExtraConductor; // inSleep 復帰
+			notifyStable();
+		}
+		restoreMessageLayerSelProcessLock(); // メッセージレイヤの restoreSelProcessLock を呼ぶ
+		setMenuAccessibleAll();
+		cancelSkip();
+
+		if(onExtraConductorReturn !== void) onExtraConductorReturn();
+	}
+
+	//------------------------------------------------------- 右クリック処理 --
+
+	function setRightClickOptions(elm)
+	{
+		// 右クリックのオプションを設定する
+		rightClickEnabled = +elm.enabled if elm.enabled !== void;
+		if(elm.call !== void)
+		{
+			rightClickCall = +elm.call;
+			if(rightClickCall) rightClickJump = false;
+		}
+		if(elm.jump !== void)
+		{
+			rightClickJump = +elm.jump;
+			if(rightClickJump) rightClickCall = false;
+		}
+		rightClickTarget = elm.target if elm.target !== void;
+		rightClickStorage = elm.storage if elm.storage !== void;
+		if(elm.name !== void)
+		{
+			if(typeof this.rightClickMenuItem != "undefined")
+			{
+				rightClickName = elm.name;
+				if(rightClickName == "default")
+					rightClickMenuItem.caption = rightClickCurrentMenuName = rightClickDefaultName;
+				else
+					rightClickMenuItem.caption = rightClickCurrentMenuName = rightClickName;
+			}
+		}
+	}
+
+	function callRightClickSubRoutine()
+	{
+		isLeavePeriodEvent = true;
+
+		// 右クリックサブルーチンを呼ぶ
+		if(typeof this.rightClickMenuItem != "undefined")
+		{
+			rightClickMenuItem.caption = rightClickCurrentMenuName = rightClickDefaultName;
+		}
+
+		callExtraConductor(rightClickStorage, rightClickTarget, restoreFromRightClick);
+
+		lockMessageLayerSelProcess(); // 選択肢ロック
+	}
+
+	function restoreFromRightClick()
+	{
+		// 右クリックサブルーチンから抜けるときに呼ばれる
+		if(typeof this.rightClickMenuItem != "undefined")
+		{
+			if(rightClickName == "default")
+				rightClickMenuItem.caption = rightClickCurrentMenuName = rightClickDefaultName;
+			else
+				rightClickMenuItem.caption = rightClickCurrentMenuName = rightClickName;
+		}
+	}
+
+	function setConductorToMain()
+	{
+		// restore の時に呼ばれ、コンダクタを main に切り替える
+		if(usingExtraConductor)
+		{
+			extraConductor.sleep();
+			extraConductor.interrupt();
+			conductor= mainConductor;
+			usingExtraConductor = false;
+		}
+	}
+
+	function jumpToRightClickTarget()
+	{
+		process(rightClickStorage, rightClickTarget);
+	}
+
+	function onPrimaryRightClick()
+	{
+		// プライマリレイヤで右クリックされたときに呼ばれる
+		if(!callHook(rightClickHook))
+		{
+			if(getKeyState(VK_LBUTTON))
+			{
+				enterAutoMode();
+				return;
+			}
+			if(!rightClickEnabled) return;
+			if(inStable)
+			{
+				if(rightClickJump)
+					jumpToRightClickTarget();
+				else if(rightClickCall && conductor == mainConductor)
+					callRightClickSubRoutine();
+				else
+					switchMessageLayerHiddenByUser();
+			}
+			setMenuAccessibleAll();
+		}
+	}
+
+	//------------------------------------------------------- 前景レイヤ処理 --
+
+	function allocateCharacterLayers(num)
+	{
+		// 前景レイヤ数を num に設定する
+		if(fore.layers.count > num)
+		{
+			// レイヤが減る
+			for(var i = num; i<fore.layers.count; i++)
+			{
+				invalidate fore.layers[i];
+				invalidate back.layers[i];
+			}
+			fore.layers.count = num;
+			back.layers.count = num;
+		}
+		else if(fore.layers.count < num)
+		{
+			// レイヤが増える
+			for(var i = fore.layers.count; i<num; i++)
+			{
+				fore.layers[i] = new CharacterLayer(this, fore.base, "表前景レイヤ" + i, i);
+				back.layers[i] = new CharacterLayer(this, back.base, "裏前景レイヤ" + i, i);
+				fore.layers[i].setCompLayer(back.layers[i]);
+				back.layers[i].setCompLayer(fore.layers[i]);
+			}
+			reorderLayers();
+		}
+		numCharacterLayers = num;
+	}
+
+	//------------------------------------------------- メッセージレイヤ処理 --
+
+	function allocateMessageLayers(num, setdefaultfont = true)
+	{
+		// メッセージレイヤ数を num に設定する
+		if(fore.messages.count > num)
+		{
+			// レイヤが減る
+			for(var i = num; i<fore.messages.count; i++)
+			{
+				if(current == fore.messages[i] || current == back.messages[i])
+					current = fore.messages[0], currentNum = 0, currentPage = 0;
+				invalidate fore.messages[i];
+				invalidate back.messages[i];
+			}
+			fore.messages.count = num;
+			back.messages.count = num;
+		}
+		else if(fore.messages.count < num)
+		{
+			// レイヤが増える
+			for(var i = fore.messages.count; i<num; i++)
+			{
+				fore.messages[i] = new MessageLayer(this, fore.base, "表メッセージレイヤ" + i, i, true);
+				back.messages[i] = new MessageLayer(this, back.base, "裏メッセージレイヤ" + i, i, true);
+				fore.messages[i].setCompLayer(back.messages[i]);
+				back.messages[i].setCompLayer(fore.messages[i]);
+				fore.messages[i].clear();
+				back.messages[i].clear();
+			}
+			reorderLayers();
+			if(setdefaultfont) setMessageLayerUserFont();
+		}
+		numMessageLayers = num;
+	}
+
+	function setCurrentMessageLayer(elm)
+	{
+		// 現在のメッセージレイヤを設定
+		var page = getMessageLayerPageFromElm(elm);
+		var num = getMessageLayerNumberFromElm(elm);
+		currentNum = num;
+		currentPage = page;
+		if(page) current = back.messages[num]; else current = fore.messages[num];
+		currentWithBack = +elm.withback if elm.withback !== void;
+	}
+
+	function setMessageLayerPosition(elm)
+	{
+		// 現在のメッセージレイヤの位置、属性を設定
+		var layer = getMessageLayerObjectFromElm(elm);
+		elm.setPosition(elm);
+	}
+
+	function clearMessageLayers(resetcurrent)
+	{
+		// すべてのメッセージレイヤのクリア
+		// ct タグから呼ばれる
+		// resetcurrent が true の場合は現在のメッセージレイヤを
+		// 表0に設定する
+
+		var messages;
+		messages = fore.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].clear();
+		messages = back.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].clear();
+		if(resetcurrent)
+		{
+			currentNum = 0;
+			currentPage = 0;
+			current = fore.messages[0];
+			currentWithBack = false;
+		}
+	}
+
+	function lockMessageLayerSelProcess()
+	{
+		// すべてのメッセージレイヤに 選択とprocessを禁止させる
+		var messages;
+		messages = fore.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].setSelProcessLock(true);
+		messages = back.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].setSelProcessLock(true);
+	}
+
+	function unlockMessageLayerSelProcess()
+	{
+		// すべてのメッセージレイヤの選択を許可する
+		var messages;
+		messages = fore.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].setSelProcessLock(false);
+		messages = back.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].setSelProcessLock(false);
+	}
+
+	function setMessageLayerUserFont()
+	{
+		// すべてのメッセージレイヤの defaultAntialiased と
+		// userFace を設定する
+		var messages;
+		messages = fore.messages;
+		for(var i = messages.count-1; i >= 0; i--)
+			messages[i].defaultAntialiased = chDefaultAntialiased,
+			messages[i].userFace = chDefaultFace;
+		messages = back.messages;
+		for(var i = messages.count-1; i >= 0; i--)
+			messages[i].defaultAntialiased = chDefaultAntialiased,
+			messages[i].userFace = chDefaultFace;
+	}
+
+	function storeMessageLayerSelProcessLock()
+	{
+		// すべてのメッセージレイヤの storeSelProcessLock を呼び出す
+		var messages;
+		messages = fore.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].storeSelProcessLock();
+		messages = back.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].storeSelProcessLock();
+	}
+
+	function restoreMessageLayerSelProcessLock()
+	{
+		// すべてのメッセージレイヤの restoreSelProcessLock を呼び出す
+		var messages;
+		messages = fore.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].restoreSelProcessLock();
+		messages = back.messages;
+		for(var i = messages.count-1; i >= 0; i--) messages[i].restoreSelProcessLock();
+	}
+
+	function setMessageLayerHiddenState(b)
+	{
+		var layers;
+		layers = fore.messages;
+		for(var i = layers.count-1; i >= 0; i--) layers[i].setHiddenStateByUser(b);
+		layers = fore.layers;
+		for(var i = layers.count-1; i >= 0; i--) layers[i].setHiddenStateByUser(b);
+
+		// プラグインを呼ぶ
+		forEachEventHook('onMessageHiddenStateChanged',
+			function(handler, f) { handler(f.hidden); } incontextof this,
+			%[hidden:b]);
+	}
+
+	function hideMessageLayerByUser()
+	{
+		// メッセージレイヤを一時的に隠す
+		if(messageLayerHiding) return;
+		setMessageLayerHiddenState(true);
+		if(typeof this.rightClickMenuItem !== "undefined")
+			rightClickMenuItem.checked = true;
+		messageLayerHiding = true;
+		fore.base.cursor = cursorWaitingClick;
+		setMenuAccessibleAll();
+	}
+
+	function showMessageLayerByUser()
+	{
+		// 一時的に隠されていたメッセージレイヤを元に戻す
+		if(!messageLayerHiding) return;
+		setMessageLayerHiddenState(false);
+		if(typeof this.rightClickMenuItem !== "undefined")
+			rightClickMenuItem.checked = false;
+		messageLayerHiding = false;
+		conductor.trigger('message'); // 'message' を送る
+		if(clickWaiting)
+			fore.base.cursor = cursorWaitingClick;
+		else
+			fore.base.cursor = cursorDefault;
+		setMenuAccessibleAll();
+	}
+
+	function switchMessageLayerHiddenByUser()
+	{
+		// メッセージレイヤの非表示/表示を切り替える
+		if(messageLayerHiding) showMessageLayerByUser(); else hideMessageLayerByUser();
+	}
+
+	function hideMessageLayerByScenario(elm)
+	{
+		// シナリオからメッセージを一時的に隠す
+		hideMessageLayerByUser();
+		conductor.wait(%[ // コンダクタを待ちに
+			message : function
+			{
+				// やることなし
+			} incontextof this
+			]);
+		return -2; // break
+	}
+
+	function selectFont()
+	{
+		// フォントを選択する
+		fore.base.font.face = chDefaultFace;
+		fore.base.font.height = -20;
+		var flags = fsfSameCharSet | fsfNoVertical | fsfTrueTypeOnly | fsfUseFontFace;
+		if(showFixedPitchOnlyInFontSelector) flags |= fsfFixedPitch;
+		if(fore.base.font.doUserSelect(flags, "フォントの選択",
+			"フォントを選択してください", "ABCDEFGHIあいうえお亜胃宇絵御"))
+		{
+			chDefaultFace = fore.base.font.face;
+			setMessageLayerUserFont();
+		}
+	}
+
+	function mapPrerenderedFont(storage)
+	{
+		// レンダリング済みフォントを現在の操作対象のレイヤに選択
+		// されているフォントにマッピングする
+		current.decideSizeChange();
+		current.lineLayer.font.mapPrerenderedFont(storage);
+	}
+
+	//------------------------------------------------- レイヤを正しい順序に --
+
+	function reorderLayers()
+	{
+		// レイヤを正しい順序に並び替える
+		var index = 1000;
+		for(var i = 0; i<fore.layers.count; i++)
+		{
+			fore.layers[i].absolute = index;
+			back.layers[i].absolute = index;
+			index += 1000;
+		}
+		index = 1000000;
+		for(var i = 0; i<fore.messages.count; i++)
+		{
+			fore.messages[i].absolute = index;
+			back.messages[i].absolute = index;
+			index += 1000;
+		}
+
+		historyLayer.absolute = 2000000;
+
+	}
+
+	//--------------------------------------------- 属性->レイヤオブジェクト --
+
+	function getLayerFromElm(elm, prefix = '')
+	{
+		// elm に指定されている page と layer 属性から、該当する
+		// オブジェクトを返す
+		// prefix には、属性名の前につけるプレフィクスを指定する
+		var base;
+		if(elm[prefix + 'page'] == 'back') base = back; else base = fore;
+		var layer = elm[prefix + 'layer'];
+		if(layer == 'base') return base.base; // 背景
+		if(layer[0] == 'm')
+		{
+			// message? ( ? = 数値 )
+			// ここではあまり厳密にエラーチェックはしない
+			if(layer == 'message') return base.messages[currentNum];
+			return base.messages[+layer.substr(7)];
+		}
+		return base.layers[+layer];
+	}
+
+	function getLayerPageFromElm(elm, backlay)
+	{
+		// getLayerFromElm と似ているが、page 属性まではみない。
+		// backlay が true のときは裏、false の時は表のレイヤを返す。
+		// elm.layer が void の時は背景レイヤを帰す
+		var base = backlay?back:fore;
+		var layer = elm.layer;
+		if(layer === void || layer == 'base') return base.base; // 背景
+		if(layer[0] == 'm')
+		{
+			if(layer == 'message') return base.messages[currentNum];
+			return base.messages[+layer.substr(7)];
+		}
+		return base.layers[+layer];
+	}
+
+	function getMessageLayerPageFromElm(elm)
+	{
+		// elm から該当する表/裏画面のメッセージレイヤ配列を返す
+		if(elm.page == 'back') return 1; else return 0;
+	}
+
+	function getMessageLayerNumberFromElm(elm)
+	{
+		// elm の layer 属性の示すメッセージレイヤ番号を返す
+		var layer = elm.layer;
+		if(layer === void || layer == 'message') return currentNum;
+		return +layer.substr(7);
+	}
+
+	function getMessageLayerObjectFromElm(elm)
+	{
+		// elm の layer 属性の示すメッセージレイヤを返す
+		var page = elm.page;
+		var layer = elm.layer;
+		if(page === void && layer === void) return current;
+		var base;
+		if(page == 'back') base = back; else base = fore;
+		if(layer === void || layer == 'message') return base.messages[currentNum];
+		return base.messages[+layer.substr(7)];
+	}
+
+	function getMessageLayerObjectFromPageAndNumber(page, num)
+	{
+		return (page?back:fore).messages[num];
+	}
+
+	//----------------------------------------------------- レイヤコピー関連 --
+
+	function backupLayer(elm, toback)
+	{
+		// レイヤの表←→裏間のコピーを行う
+		// toback = true の場合は表→裏、false の場合は裏→表
+		if(elm.layer !== void)
+		{
+			// レイヤ指定がある
+			getLayerPageFromElm(elm, toback).assignComp(); // 対のレイヤの内容をコピー
+		}
+		else
+		{
+			// レイヤ指定が無いので全部のレイヤをコピー
+			var base = toback ? back:fore;
+			base.base.assignComp();
+			var layers = base.layers, messages = base.messages;
+			for(var i = layers.count-1; i >= 0; i--) layers[i].assignComp();
+			for(var i = messages.count-1; i >= 0; i--) messages[i].assignComp();
+
+			forEachEventHook('onCopyLayer',
+				function(handler, f) { handler(f.toback); } incontextof this,
+				%[toback:toback]);
+		}
+	}
+
+	function copyLayer(elm)
+	{
+		// elm に従って同種のレイヤ間のコピーを行う
+		var src = getLayerFromElm(elm, 'src');
+		var dest = getLayerFromElm(elm, 'dest');
+		dest.assign(src);
+	}
+
+	//--------------------------------------------------- アニメーション関連 --
+
+	function onAnimationStopped(name, segment)
+	{
+		// アニメーションが停止した
+		conductor.trigger('anim:' + name + ':' + segment);
+	}
+
+	function waitAnimation(elm)
+	{
+		// アニメーションの停止をまつ
+		var layer = getLayerFromElm(elm);
+		var seg = +elm.seg;
+		if(!layer.canWaitAnimStop(seg)) return 0; // アニメーションの停止を待つ
+		conductor.wait(%[
+			'anim:' + layer.name + ':' + seg => function
+			{
+			} incontextof this
+			]);
+		return -2;
+	}
+
+	//--------------------------------------------------- トランジション関連 --
+
+	function onLayerTransitionCompleted(layer, dest, src)
+	{
+		// レイヤでトランジションが終了したときに呼ばれる
+		conductor.trigger('trans'); // 'trans' を送る
+	}
+
+	function waitTransition(elm)
+	{
+		// トランジションを待つ
+		if(transCount == 0) return 0; // トランジションを待てない
+		if((elm.canskip === void || +elm.canskip) && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ動作中
+				stopAllTransitions();
+				return 0; // トランジションを停止させてすぐに返る
+			}
+			conductor.wait(%[
+				click : function
+				{
+					updateBeforeCh = 1;
+					stopAllTransitions(); // すべてのトランジションは停止
+				} incontextof this,
+				trans : function
+				{
+					updateBeforeCh = 1;
+				} incontextof this
+				]);
+		}
+		else
+		{
+			conductor.wait(%[
+				trans : function
+				{
+					updateBeforeCh = 1;
+				} incontextof this
+				]);
+		}
+		return -2;
+	}
+
+	function stopAllTransitions()
+	{
+		// すべてのトランジションを停止させる
+		var layers, messages;
+		fore.base.stopTransition();
+		layers = fore.layers, messages = fore.messages;
+		for(var i = layers.count-1; i >= 0; i--) layers[i].stopTransition();
+		for(var i = messages.count-1; i >= 0; i--) messages[i].stopTransition();
+		back.base.stopTransition();
+		layers = back.layers, messages = back.messages;
+		for(var i = layers.count-1; i >= 0; i--) layers[i].stopTransition();
+		for(var i = messages.count-1; i >= 0; i--) messages[i].stopTransition();
+		transCount = 0; // 一応
+	}
+
+	function callExchangeInfo()
+	{
+		// すべての背景レイヤをのぞく表レイヤに対して
+		// exchangeInfo を呼ぶ
+		var layers = fore.layers, messages = fore.messages;
+		for(var i = layers.count-1; i >= 0; i--) layers[i].exchangeInfo();
+		for(var i = messages.count-1; i >= 0; i--) messages[i].exchangeInfo();
+	}
+
+	function callAssignTransSrc()
+	{
+		// すべての背景レイヤをのぞく表レイヤに対して
+		// assignTransSrc を呼ぶ
+		var layers = fore.layers, messages = fore.messages;
+		for(var i = layers.count-1; i >= 0; i--) layers[i].assignTransSrc();
+		for(var i = messages.count-1; i >= 0; i--) messages[i].assignTransSrc();
+		forEachEventHook('onCopyLayer',
+				function(handler, f) { handler(f.toback); } incontextof this,
+				%[toback:false]);
+	}
+
+	function exchangeForeBack()
+	{
+		// レイヤの裏と表を取り替える
+		var tmp = fore;
+		fore = back;
+		back = tmp;
+		current = (currentPage?back:fore).messages[currentNum]; // current は設定し直し
+		forEachEventHook('onExchangeForeBack',
+				function(handler, f) { handler(); } incontextof this);
+
+		// 強制表示変更
+		fore.base.visible = true;
+		back.base.visible = false;
+	}
+
+	function swapBaseLayer()
+	{
+		// 背景レイヤのみを取り替える
+		var tmp = fore.base;
+		fore.base = back.base;
+		back.base = tmp;
+		current = (currentPage?back:fore).messages[currentNum]; // current は設定し直し
+	}
+
+	function swapCharacterLayer(id)
+	{
+		// 前景レイヤの表と裏を取り替える
+		var fl = fore.layers, bl = back.layers;
+		var tmp = fl[id];
+		fl[id] = bl[id];
+		bl[id] = tmp;
+	}
+
+	function swapMessageLayer(id)
+	{
+		// メッセージレイヤの表と裏を取り替える
+		var fl = fore.messages, bl = back.messages;
+		var tmp = fl[id];
+		fl[id] = bl[id];
+		bl[id] = tmp;
+		current = (currentPage?back:fore).messages[currentNum]; // current は設定し直し
+	}
+
+	//--------------------------------------------------------- 自動移動関連 --
+
+	function onLayerMoveStop()
+	{
+		// レイヤの自動移動が終了した
+		conductor.trigger('move');
+	}
+
+	function waitMove(elm)
+	{
+		// 自動移動を待つ
+		if(moveCount == 0) return 0; // 自動移動を待てない
+		if((elm.canskip === void || +elm.canskip) && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ動作中
+				stopAllMoves();
+				return 0; // 自動移動を停止させてすぐに返る
+			}
+			conductor.wait(%[
+				click : function
+				{
+					updateBeforeCh = 1;
+					stopAllMoves(); // すべてのトランジションは停止
+				} incontextof this,
+				move : function
+				{
+					updateBeforeCh = 1;
+				} incontextof this
+				]);
+		}
+		else
+		{
+			conductor.wait(%[
+				move : function
+				{
+					updateBeforeCh = 1;
+				} incontextof this
+				]);
+		}
+		return -2;
+	}
+
+	function stopAllMoves()
+	{
+		// すべての自動移動を停止させる
+		var layers, messages;
+		fore.base.stopMove();
+		back.base.stopMove();
+		layers = fore.layers, messages = fore.messages;
+		for(var i = layers.count-1; i >= 0; i--) layers[i].stopMove();
+		for(var i = messages.count-1; i >= 0; i--) messages[i].stopMove();
+		layers = back.layers, messages = back.messages;
+		for(var i = layers.count-1; i >= 0; i--) layers[i].stopMove();
+		for(var i = messages.count-1; i >= 0; i--) messages[i].stopMove();
+		moveCount = 0; // 一応
+	}
+
+	//------------------------------------------------ ディレイ/スキップ関連 --
+
+	function setDelay(elm)
+	{
+		// delay タグの処理
+		var speed = elm.speed;
+		if(speed == 'nowait')
+		{
+			chSpeed = 0;
+			chUserMode = false;
+		}
+		else if(speed == 'user')
+		{
+			chUserMode = true;
+			setUserSpeed();
+		}
+		else
+		{
+			chSpeed = +speed;
+			chUserMode = false;
+		}
+		if(!skipMode) actualChSpeed = chSpeed;
+	}
+
+	function getCurrentRead()
+	{
+		// 現在のシナリオ部分が既読かどうかを判定する
+		return autoRecordPageShowing && currentRecordName != "" &&
+				+sflags[currentRecordName] || !autoRecordPageShowing;
+	}
+
+	function setUserSpeed()
+	{
+		// ユーザの選択した文字表示スピードを設定
+		// この関数を読んだ時点ですでに userChSpeed には
+		// あたらしい値が設定されているとみなす。
+		// あるいは、ラベルごとに、その区域が既読か未読かで
+		// 表示スピードを変える目的で呼ばれる
+		if(chUserMode)
+		{
+			if(getCurrentRead())
+				chSpeed = userCh2ndSpeed==-1?userChSpeed:userCh2ndSpeed; // 既読
+			else
+				chSpeed = userChSpeed; // 未読
+		}
+		if(!skipMode) actualChSpeed = chSpeed;
+	}
+
+	function skipToClick()
+	{
+		// クリック待ち記号までスキップ
+		skipMode = 1;
+		actualChSpeed = 0;
+	}
+
+	function skipToPage()
+	{
+		// 改ページ待ち記号までスキップ
+		skipMode = 2;
+		actualChSpeed = 0;
+	}
+
+	function skipToStop()
+	{
+		// 次の停止までスキップ
+		onPrimaryClick(); // クリックの動作をエミュレートする
+		skipMode = 3;
+		actualChSpeed = 0;
+	}
+
+	function skipToStop2()
+	{
+		// 次の停止までスキップ(早送りモード)
+		onPrimaryClick();
+		skipMode = 4;
+		actualChSpeed = 0;
+	}
+
+	function cancelSkip()
+	{
+		// スキップ動作をキャンセル
+		if(skipMode == 4) skipKeyRepressed = false;
+		skipMode = 0;
+		actualChSpeed = chSpeed;
+	}
+
+	function enterNoWait()
+	{
+		// nowait タグの処理
+		beforeNoWaitActualChSpeed = actualChSpeed;
+		beforeNoWaitChUserMode = chUserMode;
+		actualChSpeed = 0;
+	}
+
+	function leaveNoWait()
+	{
+		// endnowait タグの処理
+		actualChSpeed = beforeNoWaitActualChSpeed;
+		chUserMode = beforeNoWaitChUserMode;
+	}
+
+	function setAutoWait(elm)
+	{
+		// 自動ウェイトを設定する
+		autoWCEnabled = +elm.enabled if elm.enabled !== void;
+		autoWCChars = elm.ch if elm.ch !== void;
+		autoWCWaits = [].split(",", elm.time) if elm.time !== void;
+	}
+
+	function cancelAutoMode()
+	{
+		// 自動読みすすみモードのキャンセル
+		if(autoMode)
+		{
+			autoMode = false;
+			if(typeof this.autoModeMenuItem !== "undefined")
+				autoModeMenuItem.checked = false;
+			var t = conductor.lastTagName;
+			if(t == 'p'){
+				showPageBreak();
+			}
+			else if(t == 'l'){
+				showLineBreak(%[canskip: false]);
+			}
+		}
+	}
+
+	function enterAutoMode()
+	{
+		// 自動読みすすみモードに入る
+		if(typeof this.autoModeMenuItem !== "undefined")
+			autoModeMenuItem.checked = true;
+		if(inStable)
+			onPrimaryClick();
+		autoMode = true;
+	}
+
+	//--------------------------------------------------------- ウェイト関連 --
+
+	function resetWait()
+	{
+		// 時間原点のリセット
+		timeOrigin = System.getTickCount();
+	}
+
+	function waitTime(waittime, canskip)
+	{
+		// waittime 分待つ
+		if(waittime == 0) return 0;
+		if(canskip)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ中の場合
+				return 0; // スキップ中の場合はなにもせずに返る
+			}
+			conductor.waitWithTimeOut(%[
+				click : function
+				{
+					// やることなし
+				} incontextof this,
+
+				timeout : function
+				{
+					// やることなし
+				} incontextof this
+				], waittime);
+		}
+		else
+		{
+			// スキップできない場合
+			conductor.waitWithTimeOut(%[
+				timeout : function
+				{
+					// やることなし
+				} incontextof this
+				], waittime);
+		}
+		return -2; // break
+		
+	}
+
+	function doWait(elm)
+	{
+		// wait タグの処理
+		var waittime;
+		if(elm.mode == 'until')
+		{
+			// until モード
+			waittime = timeOrigin + +elm.time - System.getTickCount();
+			if(waittime < 0) { lastWaitTime = 0; return 0; } // すでに時間が経過している
+			lastWaitTime = waittime;
+			if(waittime < 6) return 0; // あまりに待ち時間が短いので待たない
+		}
+		else
+		{
+			waittime = +elm.time;
+		}
+		return waitTime(waittime, (elm.canskip === void || +elm.canskip) && clickSkipEnabled);
+	}
+
+	function doWaitCh(elm)
+	{
+		// +elm.time のカウント分、待つ
+		var t = elm.time;
+		return waitTime(actualChSpeed * (t === void ? 1 : +t),
+			(elm.canskip === void || +elm.canskip) && clickSkipEnabled);
+	}
+
+	//------------------------------------------------------------ quake関連 --
+
+	function doQuake(elm)
+	{
+		// elm に従って quake を開始
+		if(elm.time !== void)
+		{
+			if(defaultQuakeTimeInChUnit)
+			{
+				if(elm.timemode == 'ms')
+					quakeEndTick = System.getTickCount() + +elm.time;
+				else
+					quakeEndTick = System.getTickCount() + +elm.time * chSpeed;
+			}
+			else
+			{
+				if(elm.timemode == 'delay')
+					quakeEndTick = System.getTickCount() + +elm.time * chSpeed;
+				else
+					quakeEndTick = System.getTickCount() + +elm.time;
+			}
+		}
+		else
+		{
+			quakeEndTick = -1;
+		}
+
+		if(elm.hmax !== void) quakeHorzMax = +elm.hmax; else quakeHorzMax = 10;
+		if(elm.vmax !== void) quakeVertMax = +elm.vmax; else quakeVertMax = 10;
+
+		quakeTimer.enabled = true;
+		quaking = true;
+	}
+
+	function restoreQuake()
+	{
+		// restore から呼ばれ、栞を保存したときに揺れていた場合は揺らす
+		if(quaking && quakeEndTick == -1)
+			quakeTimer.enabled =true;
+		// MEMO: time 属性付きの quake は restore() 時に復旧されないが
+		//  セーブラベルと quake の位置によっては quaking の値が狂う場合がある。
+		//  quaking 自体あまり必要には見えないが互換性維持のためここで帳尻を合わせておく。
+		else
+		if(!quakeTimer.enabled)	// 誤って restoreQuake() が呼び出された場合の quaking 値の保護
+			quaking = false;
+	}
+
+    /**
+     * レイヤ位置の調整
+     */
+	function setBaseLayerPos(x, y) {
+		(global.Layer.setPos incontextof fore.base)(x,y);
+		(global.Layer.setPos incontextof back.base)(x,y);
+		forEachEventHook('setBaseLayerPos',
+						 function(handler, info) { handler(info.x, info.y); } incontextof this, %[x:x, y:y]);
+	}
+	
+	function stopQuake()
+	{
+		// 揺れを停止
+		setBaseLayerPos(0, 0);
+		quakeTimer.enabled = false;
+		quaking = false;
+		conductor.trigger('quake');
+	}
+
+	function onQuakeTimerInterval()
+	{
+		// quakeTimer により呼ばれる
+		if(quakeEndTick != -1 && System.getTickCount() > quakeEndTick) { stopQuake(); return; }
+		if(historyShowing)
+		{
+			// メッセージ履歴レイヤ表示中はさすがに揺れていられない
+			setBaseLayerPos(0, 0);
+			return;
+		}
+		var x, y;
+		if(quakeHorzMax == quakeVertMax)
+		{
+			// だいたい同じ
+			x = int(Math.random() * quakeHorzMax - quakeHorzMax);
+			y = int(Math.random() * quakeVertMax - quakeVertMax);
+		}
+		else if(quakeHorzMax < quakeVertMax)
+		{
+			// 縦揺れ
+			x = int(Math.random() * quakeHorzMax - quakeHorzMax);
+			y = int((quakePhase ? Math.random() : -Math.random()) * quakeVertMax);
+		}
+		else
+		{
+			// 横揺れ
+			x = int((quakePhase ? Math.random() : -Math.random()) * quakeHorzMax);
+			y = int(Math.random() * quakeVertMax - quakeVertMax);
+		}
+		quakePhase = !quakePhase;
+		setBaseLayerPos(x, y);
+	}
+
+	function waitQuake(elm)
+	{
+		// 揺れが終了するまでまつ
+		if(!quaking || quakeEndTick == -1) return 0; // 揺れていなければ待たない
+		if(elm.canskip !== void && +elm.canskip && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ中の場合
+				stopQuake();
+				return 0; // スキップ中の場合は揺れを停止させて返る
+			}
+			conductor.wait(%[
+				click : function
+				{
+					stopQuake(); // 揺れは停止する
+				} incontextof this,
+
+				quake : function
+				{
+					// やることなし
+				} incontextof this
+				]);
+		}
+		else
+		{
+			// スキップできない場合
+			conductor.wait(%[
+				quake : function
+				{
+					// やることなし
+				} incontextof this
+				]);
+		}
+		return -2;
+	}
+
+	//------------------------------------------------------------- クリック --
+
+	function onPrimaryClick()
+	{
+		// プライマリレイヤで「クリックの動作」がなにもフィルタリングされなかった
+		// とき、プライマリレイヤから呼ばれる。
+		clickCount ++;
+		if(!callHook(leftClickHook))
+		{
+			if(messageLayerHiding)
+			{
+				showMessageLayerByUser(); // メッセージレイヤを表示する
+			}
+			else
+			{
+				var st = conductor.status;
+				var runst = conductor.mRun;
+				var stopst = conductor.mStop;
+
+				if(st != stopst && autoMode)
+				{
+					// 自動読みすすみの場合
+					cancelAutoMode();
+				}
+				else if(st != stopst && canCancelSkipByClick && skipMode && skipMode != 4)
+				{
+					// クリックによるスキップの解除が可能
+					cancelSkip();
+				}
+				else
+				{
+					// この時点でフィルタリングされないメッセージは待ち状態のクリアなので
+					// conductor に 'click' を送り解除を伝える。
+
+					if(!conductor.trigger('click')) // 待ち状態でない場合は単に無視される
+					{
+						// ハンドラが見つからないなど、処理されなかった場合
+						if(st == runst && clickSkipEnabled && skipMode == 0)
+						{
+							// クリックによるスキップが可能
+							skipToClick();
+						}
+					}
+				}
+			}
+		}
+	}
+
+	function onPrimaryClickByKey()
+	{
+		// キーが押されたときプライマリレイヤをクリックしたのと
+		// 同じ動作をするが、さらに一時的にマウスカーソルを隠す
+		onPrimaryClick();
+		hideMouseCursor();
+	}
+
+	function waitClick(elm)
+	{
+		// クリックを待つ
+		conductor.wait(%[
+			click : function
+			{
+			} incontextof this]);
+		return -2;
+	}
+
+	function onMouseDown(x, y)
+	{
+		lastMouseDownX = x;
+		lastMouseDownY = y;
+		super.onMouseDown(...);
+	}
+
+	//------------------------------------------------------- キーボード操作 --
+
+	function processKeys(key, shift)
+	{
+		if(checkProceedingKey(key, shift)) return;
+
+		if(key == #'F')
+		{
+			// 次の選択肢/未読まで進む
+			skipToNextStopByKey();
+			return;
+		}
+
+		if(key == #'B')
+		{
+			// 前に戻る
+			goBackByKey();
+			return;
+		}
+
+		if(key == #'A')
+		{
+			// 自動的に読み進める
+			switchAutoModeByKey();
+			return;
+		}
+
+		if(freeSaveDataMode)
+		{
+			if(key == #'S')
+			{
+				// 栞をはさむ
+				if(typeof this.storeMenu != "undefined" && storeMenu.enabled)
+					storeMenu.click();
+				return;
+			}
+
+			if(key == #'L')
+			{
+				// 栞をたどる
+				if(typeof this.restoreMenu != "undefined" && restoreMenu.enabled)
+					restoreMenu.click();
+				return;
+			}
+		}
+
+		if(key == #'R' || (key == VK_UP && (shift & ssShift)))
+		{
+			// メッセージ履歴を表示
+			showHistoryByKey();
+			return;
+		}
+
+		if(key == VK_ESCAPE)
+		{
+			// メッセージを消す
+			if(typeof this.rightClickMenuItem != "undefined" &&
+				rightClickMenuItem.enabled)
+			{
+				rightClickMenuItem.click(); // クリックをエミュレート
+				return;
+			}
+		}
+	}
+
+	function preProcessKeys(key, shift)
+	{
+		return callHook(keyDownHook, key, shift);
+	}
+
+	function internalOnKeyDown(key, shift)
+	{
+		if(!preProcessKeys(key, shift)) processKeys(key, shift);
+	}
+
+	function checkProceedingKey(key, shift)
+	{
+		// key が読みすすみのキー ( スペースキーかReturnキー ) の場合は
+		// キーを処理し、true を返す。そうでなければ false を返す
+		if(key == VK_RETURN || key == supportReadingKey)
+		{
+			// キーがメッセージキューに溜まってる場合があるので
+			// 実際にそのキーが押されているのかどうかを
+			// getKeyState を用いて調べる
+			var sg = getKeyState;
+			if(sg(VK_RETURN) || sg(supportReadingKey))
+			{
+				// キーが押されてた
+				if((shift & ssRepeat) && clickSkipEnabled)
+				{
+					// キーリピート
+					if(skipMode != 4 && skipKeyRepressed)
+						skipToStop2(); // まだskipMode 4に入っていない場合は早送りモードに入る
+					// skipKeyRepressed をチェックするのは
+					// 連続してキーリピートが発生しているときに
+					// cancelSkip 後にスキップに突入するのを防ぐため
+				}
+				else
+				{
+					skipKeyRepressed = true;
+					onPrimaryClickByKey();
+				}
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	function skipCancelKeyPressing()
+	{
+		// スキップを解除する要因となるキーあるいはマウスボタンが押されているか
+		var sg = getKeyState;
+		return sg(VK_RETURN) || sg(supportReadingKey) || sg(VK_LBUTTON);
+	}
+
+	function skipKeyPressing()
+	{
+		// VK_RETURN あるいは supportReadingKey が押されているかどうか
+		var sg = getKeyState;
+		return sg(VK_RETURN) || sg(supportReadingKey);
+	}
+
+	function goBackByKey()
+	{
+		if(typeof this.goBackMenuItem != "undefined" &&
+			goBackMenuItem.enabled)
+			goBackMenuItem.click(); // クリックをエミュレート
+	}
+
+	function skipToNextStopByKey()
+	{
+		if(typeof this.skipToNextStopMenuItem != "undefined" &&
+			skipToNextStopMenuItem.enabled)
+			skipToNextStopMenuItem.click(); // クリックをエミュレート
+	}
+
+	function showHistoryByKey()
+	{
+		if(typeof this.showHistoryMenuItem != "undefined" &&
+			showHistoryMenuItem.enabled)
+			showHistoryMenuItem.click(); // クリックをエミュレート
+	}
+
+	function switchAutoModeByKey()
+	{
+		if(typeof this.autoModeMenuItem != "undefined" &&
+			autoModeMenuItem.enabled)
+			autoModeMenuItem.click(); // クリックをエミュレート
+	}
+
+	function onKeyDown(key, shift)
+	{
+		if(focusedLayer === null)
+			internalOnKeyDown(key, shift);
+		super.onKeyDown(...);
+	}
+
+	function onMouseWheel(shift, delta, x, y)
+	{
+		// ホイールが回転した
+		super.onMouseWheel(...);
+        // メッセージ窓のホイール処理
+        if (inSleep && current.hasWheel()) {
+            current.processWheel(shift, delta, x, y);
+            return;
+        }
+		if(!historyLayer.visible)
+		{
+			if(delta > 0)
+				showHistoryByKey(); // メッセージ履歴を表示
+			else if(System.getTickCount() - lastHistoryHiddenTick > 150) 
+					onPrimaryClick(); // クリックをエミュレート
+			// ↑ tick を比較しているのは、メッセージ履歴を隠す操作とホイールを
+			// 手前に回す操作が連続した場合に勝手に読み進むのをある程度防ぐ仕掛け
+		}
+		else
+		{
+			// メッセージ履歴にイベントを垂れ流す
+			historyLayer.windowMouseWheel(shift, delta, x, y);
+		}
+	}
+
+	function onMouseDown(x, y, button)
+	{
+		// フルスクリーン時の画面外クリックを判定
+		if (fullScreened)
+		{
+			// x,yは実座標のためプライマリレイヤで判定
+			var pl = primaryLayer;
+			var px = pl.cursorX;
+			var py = pl.cursorY;
+
+			if (px < 0 || py < 0 || px >= pl.width || py >= pl.height)
+			{
+				if (button == mbLeft)
+				{
+					onPrimaryClick();
+				}
+				else if (button == mbRight)
+				{
+					onPrimaryRightClick();
+				}
+			}
+		}
+		super.onMouseDown(...);
+	}
+
+	//------------------------------------------------- クリック待ち記号処理 --
+
+	function hideClickGlyphs()
+	{
+		// クリック待ち記号を非表示に
+		lineBreak.visible = false;
+		pageBreak.visible = false;
+		if(conductor == mainConductor)
+		{
+			// クリック待ち記号の状態を記録
+			lastClickGlyphVisible = false;
+		}
+	}
+
+	function storeClickGlyphState(which)
+	{
+		// クリック待ち記号の情報を一時的に待避
+		// このデータは右クリックサブルーチンやextraConductorサブルーチンから戻るときに参照する
+		if(conductor == mainConductor)
+		{
+			lastClickGlyphVisible = true;
+			lastClickGlyphMessagePage = currentPage;
+			lastClickGlyphMessageNum = currentNum;
+			lastClickGlyphWhich = which;
+		}
+	}
+
+	function restoreClickGlyphState()
+	{
+		// lastClickGlyph *** に一時的に待避したクリック待ち記号の情報
+		// に基づいてクリック待ち記号を設定する
+		if(lastClickGlyphVisible)
+		{
+			var layer = getMessageLayerObjectFromPageAndNumber
+				(lastClickGlyphMessagePage, lastClickGlyphMessageNum);
+			if(layer !== void)
+			{
+				switch(lastClickGlyphWhich)
+				{
+				case 'line':
+					layer.showLineBreakGlyph(lineBreak);
+					break;
+				case 'page':
+					layer.showPageBreakGlyph(pageBreak);
+					break;
+				}
+			}
+		}
+	}
+
+	function canIgnoreL()
+	{
+		// L タグを無視できるかどうか
+		return chNonStopToPageBreak || (getCurrentRead() && ch2ndNonStopToPageBreak);
+	}
+
+	function showLineBreak(elm)
+	{
+		// 現在のメッセージレイヤに行待ち記号を表示する
+		stablePosibility = true;
+		if(canIgnoreL())
+		{
+			// l タグの無視
+			if(elm.canskip === void || !+elm.canskip)
+				return (skipMode==3 || skipMode==4) ? 0 : -4;
+		}
+		if(autoMode)
+		{
+			// 自動読みすすみの場合
+			return autoModeLineWait;
+		}
+		if(skipMode == 1) cancelSkip();
+		if(skipMode == 4 && !skipKeyPressing()) cancelSkip();
+		if(skipMode == 4) return -4;
+		if(skipMode) return skipCancelKeyPressing()?-4:0;
+			// スキップ中(スキップをキャンセルするようなキーがあればスキップ解除
+			// のためのイベント処理の機会を与える)
+
+		current.showLineBreakGlyph(lineBreak);
+		storeClickGlyphState("line");
+
+		if(!current.nodeVisible)
+		{
+			dm("警告 : 非表示になっている" +
+				(currentPage ? "裏" : "表") + "メッセージレイヤ" + currentNum +
+				"で行クリック待ちになりました");
+		}
+
+		// conductor を 'click' まで待ち状態に
+		conductor.wait(%[
+			click : function
+			{
+				clickWaiting = false;
+				fore.base.cursor = cursorDefault;
+				notifyRun();
+			} incontextof this
+			]);
+		clickWaiting = true;
+		fore.base.cursor = cursorWaitingClick;
+		notifyStable();
+		return -2;
+	}
+
+	function showPageBreak(elm)
+	{
+		// 現在のメッセージレイヤにページ待ち記号を表示する
+		stablePosibility = true;
+		if(skipMode == 1 || skipMode == 2) cancelSkip();
+		if(skipMode == 4 && !skipKeyPressing()) cancelSkip();
+		if(skipMode) return -4; // いったんイベントを処理
+		if(autoMode)
+		{
+			// 自動読みすすみの場合
+			return autoModePageWait;
+		}
+
+		current.showPageBreakGlyph(pageBreak);
+		storeClickGlyphState("page");
+
+		if(!current.nodeVisible)
+		{
+			dm("警告 : 非表示になっている" +
+				(currentPage ? "裏" : "表") + "メッセージレイヤ" + currentNum +
+				"でページクリック待ちになりました");
+		}
+
+		// conductor を 'click' まで待ち状態に
+		conductor.wait(%[
+			click : function
+			{
+				clickWaiting = false;
+				fore.base.cursor = cursorDefault;
+				notifyRun();
+			} incontextof this
+			]);
+		clickWaiting = true;
+		fore.base.cursor = cursorWaitingClick;
+		notifyStable();
+		return -2;
+	}
+
+	function showPageBreakAndClear()
+	{
+		// メッセージレイヤが最終行まで達して自動改ページがされるときに
+		// 呼ばれる。現在のメッセージレイヤにページ待ち記号を表示し、
+		// 実行再開時には MessageLayer.clear2 を呼ぶ
+		stablePosibility = true;
+		if(skipMode == 1 || skipMode == 2) cancelSkip();
+		if(skipMode == 4 && !skipKeyPressing()) cancelSkip();
+		var lasttagname = conductor.lastTagName;
+		if((!autoMode && ((!canIgnoreL() && lasttagname == 'l') || lasttagname == 'p')) || skipMode)
+		{// いったんイベントを処理(タグは後回し)
+			current.comp.clear2() if currentWithBack;
+			current.clear2();
+			return -5;
+		}
+
+		if(!current.nodeVisible)
+		{
+			dm("警告 : 非表示になっている" +
+				(currentPage ? "裏" : "表") + "メッセージレイヤ" + currentNum +
+				"で自動改ページクリック待ちになりました");
+		}
+
+		if(autoMode)
+		{
+			conductor.waitWithTimeOut(%[ // タイムアウト付きウェイト
+				click : function
+				{
+					current.comp.clear2() if currentWithBack;
+					current.clear2(); // clear2 を呼ぶ
+					cancelAutoMode();
+				} incontextof this,
+				timeout : function
+				{
+					current.comp.clear2() if currentWithBack;
+					current.clear2(); // clear2 を呼ぶ
+				} incontextof this
+				], autoModePageWait <= 0 ? 1 : autoModePageWait);
+			return -3;
+		}
+		else
+		{
+			current.comp.showPageBreakGlyph(pageBreak) if currentWithBack;
+			current.showPageBreakGlyph(pageBreak);
+			storeClickGlyphState("page");
+
+			// conductor を 'click' まで待ち状態に
+			conductor.wait(%[
+				click : function
+				{
+					clickWaiting = false;
+					fore.base.cursor = cursorDefault;
+					current.comp.clear2() if currentWithBack;
+					current.clear2(); // clear2 を呼ぶ
+					notifyRun();
+				} incontextof this
+				]);
+			clickWaiting = true;
+			fore.base.cursor = cursorWaitingClick;
+			notifyStable();
+			return -3;
+		}
+	}
+
+	//------------------------------------------------------------- BGM 処理 --
+
+	function onBGMFadeCompleted()
+	{
+		// BGM のフェードが完了した
+		conductor.trigger('bgmfade');
+	}
+
+    // BGM停止処理
+    var bgmStopExp;
+    var bgmStopStorage;
+    var bgmStopTarget;
+
+    function handleBgmStop() {
+        // BGM停止ハンドラ
+
+        // パラメータを保持して破棄
+        var exp     = bgmStopExp;
+        var storage = bgmStopStorage;
+        var target  = bgmStopTarget;
+        clearBgmStop();
+        
+        // 処理実行
+        if (exp !== void) {
+            Scripts.eval(exp);
+        }
+        if (storage !== void || target !== void) {
+            process(storage, target);
+        }
+    }
+	
+    function setBgmStop(elm) {
+        // BGM停止時処理の登録
+        bgmStopExp     = elm.exp;
+        bgmStopStorage = elm.storage;
+        bgmStopTarget  = elm.target;
+    }
+    
+    function clearBgmStop() {
+        // BGM停止時処理の解除
+        bgmStopExp     = void;
+        bgmStopStorage = void;
+        bgmStopTarget  = void;
+    }
+    
+	function onBGMStop()
+	{
+		// BGM が停止した
+		conductor.trigger('bgmstop');
+        if (bgmStopExp !== void || bgmStopStorage !== void || bgmStopTarget !== void) {
+            global.stopBgmTrigger = new AsyncTrigger(handleBgmStop, '');
+            global.stopBgmTrigger.cached = true;
+            global.stopBgmTrigger.trigger();
+        }
+	}
+    // ------------------------------------------
+    
+    var bgmLabelInfos = %[];
+    var bgmLabelInfo;
+
+    function handleBgmLabel() {
+        if (bgmLabelInfo !== void) {
+            if (bgmLabelInfo.exp !== void) {
+                Scripts.eval(bgmLabelInfo.exp);
+            }
+            if (bgmLabelInfo.storage !== void || bgmLabelInfo.target !== void) {
+                process(bgmLabelInfo.storage, bgmLabelInfo.target);
+            }
+        }
+    }
+
+    function onBGMLabel(label) {
+        // BGM のラベル通過処理
+        conductor.trigger('bgmlabel_' + label);
+        var obj = bgmLabelInfos[label];
+        if (obj !== void) {
+            bgmLabelInfo = obj;
+            global.labelBgmTrigger = new AsyncTrigger(handleBgmLabel, '');
+            global.labelBgmTrigger.cached = true;
+            global.labelBgmTrigger.trigger();
+        }
+    }
+
+    /**
+     * BGM ラベル処理の登録
+     */
+    function setBgmLabel(elm) {
+        if (elm.name !== void) {
+            var obj = %[];
+            obj.storage = elm.storage;
+            obj.target  = elm.target;
+            obj.exp     = elm.exp;
+            bgmLabelInfos[elm.name] = obj;
+        }
+    }
+
+    /**
+     * BGM ラベル処理の解除
+     */
+    function clearBgmLabel() {
+        bgmLabelInfos = %[];
+        bgmLabelInfo = void;
+    }
+
+    // ----------------------------------------------------------------------
+    
+	function waitBGMFade(elm)
+	{
+		// BGM のフェード終了を待つ
+		if(!bgm.inFading) return 0; // フェード中でなければ待たない
+		if(elm.canskip !== void && +elm.canskip && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ中の場合
+				bgm.stopFade();
+				return 0; // スキップ中の場合はフェードを停止させて返る
+			}
+			conductor.wait(%[
+				click : function
+				{
+					bgm.stopFade(); // フェーディングは停止する
+				} incontextof this,
+
+				bgmfade : function
+				{
+					// やることなし
+				} incontextof this
+				]);
+		}
+		else
+		{
+			// スキップできない場合
+			conductor.wait(%[
+				bgmfade : function
+				{
+					// やることなし
+				} incontextof this
+				]);
+		}
+		return -2;
+	}
+
+	function waitBGMStop(elm)
+	{
+		// BGM の再生終了を待つ
+		if(!bgm.canWaitStop) return 0; // BGM 再生終了を待てなければそのまま戻る
+		if(elm.canskip !== void && +elm.canskip && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ中の場合
+				bgm.stop();
+				return 0; // スキップ中の場合は再生を停止させて返る
+			}
+			conductor.wait(%[
+				click : function
+				{
+					bgm.stop(); // 再生を終了する
+				} incontextof this,
+
+				bgmstop : function
+				{
+					// やることなし
+				} incontextof this
+				]);
+		}
+		else
+		{
+			// スキップできない場合
+			conductor.wait(%[
+				bgmstop : function
+				{
+					// やることなし
+				} incontextof this
+				]);
+		}
+		return -2;
+	}
+
+	//----------------------------------------------------------- 効果音処理 --
+
+	function onSESoundBufferFadeCompleted(id)
+	{
+		// 効果音のフェードが終了した
+		conductor.trigger('sefade' + id);
+	}
+
+	function onSESoundBufferStop(id)
+	{
+		// 効果音の再生が終了した
+		conductor.trigger('sestop' + id);
+	}
+
+	function waitSEFade(elm)
+	{
+		var id = +elm.buf;
+		var buf = se[id];
+		if(!buf.inFading) return 0; // フェード中でなければそのまま戻る
+		if(elm.canskip !== void && +elm.canskip && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ中の場合
+				buf.stopFade();
+				return 0; // スキップ中の場合はフェードを停止させて返る
+			}
+			conductor.wait(%[
+				click : function (id)
+				{
+					se[id].stopFade(); // フェードを終了する
+				} incontextof this,
+
+				click_arg : id, // ハンドラへの引数
+
+				'sefade'+id =>
+				function (id)
+				{
+					// やることなし
+				} incontextof this,
+
+				'sefade'+id+'_arg' => id // ハンドラへの引数
+				]);
+		}
+		else
+		{
+			// スキップできない場合
+			conductor.wait(%[
+				'sefade'+id =>
+					function (id)
+					{
+						// やることなし
+					} incontextof this,
+
+				'sefade'+id+'_arg' => id // ハンドラへの引数
+				]);
+		}
+		return -2;
+	}
+
+	function waitSEStop(elm)
+	{
+		var id = +elm.buf;
+		var buf = se[id];
+		if(!buf.canWaitStop()) return 0; // 終了を待てなければそのまま返る
+		if(elm.canskip !== void && +elm.canskip && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ中の場合
+				buf.stop();
+				return 0; // スキップ中の場合は再生を停止させて返る
+			}
+			conductor.wait(%[
+				click : function (id)
+				{
+					se[id].stop(); // 再生を終了する
+				} incontextof this,
+
+				'click_arg' => id, // ハンドラへの引数
+
+				'sestop'+id =>
+				function (id)
+				{
+					// やることなし
+				} incontextof this,
+
+				'sestop'+id+'_arg' => id // ハンドラへの引数
+				]);
+		}
+		else
+		{
+			// スキップできない場合
+			conductor.wait(%[
+				'sestop'+id =>
+				function (id)
+				{
+					// やることなし
+				} incontextof this,
+
+				'sestop'+id+'_arg' => id // ハンドラへの引数
+				]);
+		}
+		return -2;
+	}
+
+	//--------------------------------------------------------- ムービー関連 --
+
+	function onMovieStop(id)
+	{
+		// ムービーの再生が終了した
+		conductor.trigger('moviestop'+id);
+	}
+
+	function waitMovieStop(elm)
+	{
+		var id = +elm.slot;
+
+		// ムービーの再生終了を待つ
+		if(!movies[id].canWaitStop) return 0; // ムービー再生終了を待てなければそのまま戻る
+		if(elm.canskip !== void && +elm.canskip && clickSkipEnabled)
+		{
+			// スキップできる場合
+			if(skipMode)
+			{
+				// スキップ中の場合
+				movies[id].stop();
+				return 0; // スキップ中の場合は再生を停止させて返る
+			}
+			conductor.wait(%[
+				click : function (id)
+				{
+					movies[id].stop(); // 再生を終了する
+				} incontextof this,
+
+				'click_arg' => id, // ハンドラへの引数
+
+				'moviestop'+id =>
+				function (id)
+				{
+					// やることなし
+				} incontextof this,
+
+				'moviestop'+id+'_arg' => id // ハンドラへの引数
+				]);
+		}
+		else
+		{
+			// スキップできない場合
+			conductor.wait(%[
+				'moviestop'+id =>
+				function (id)
+				{
+					// やることなし
+				} incontextof this,
+
+				'moviestop'+id+'_arg' => id // ハンドラへの引数
+				]);
+		}
+		return -2;
+	}
+
+	function onMoviePeriod(id,type)
+	{
+		// ムービーのピリオドイベントが発生した
+		if( isLeavePeriodEvent != false )
+		{
+			holdPeriodEventQueue.add( 'movieperiod'+id+'_'+type );
+		}
+		else
+		{
+			conductor.trigger('movieperiod'+id+'_'+type);
+		}
+	}
+
+	function waitMoviePeriod(elm)
+	{
+		isWaitPeriodEvent = true;
+		waitedPeriodEventStorageName = conductor.curStorage;
+	
+		var id = +elm.slot;
+
+		stablePosibility = true;
+
+		if( holdPeriodEventQueue.count > 0 )
+		{
+			var		triggered = false;
+			for( var i = 0; i < holdPeriodEventQueue.count; i++ )
+			{
+				if( elm.for !== void )
+				{
+					if( elm.for == 'loop' )
+					{
+						if( ('movieperiod'+id+'_'+perLoop) == holdPeriodEventQueue[i] )
+							triggered = true;
+					}
+					else if( elm.for == 'period' )
+					{
+						if( ('movieperiod'+id+'_'+perPeriod) == holdPeriodEventQueue[i] )
+							triggered = true;
+					}
+					else if( elm.for == 'prepare' )
+					{
+						if( ('movieperiod'+id+'_'+perPrepare) == holdPeriodEventQueue[i] )
+							triggered = true;
+					}
+					else if( elm.for == 'segLoop' )
+					{
+						if( ('movieperiod'+id+'_'+perSegLoop) == holdPeriodEventQueue[i] )
+							triggered = true;
+					}
+					else
+					{
+						triggered == true;
+					}
+				}
+				else
+				{
+					triggered == true;
+				}
+			}
+			holdPeriodEventQueue.clear();
+			if( triggered == true )
+			{
+				isWaitPeriodEvent = false;
+				return 0;
+			}
+		}
+
+		// ムービーのピリオドイベントを待つ
+		if(!movies[id].canWaitStop) return 0; // ムービーが再生中でなければそのまま戻る
+		if( elm.for !== void )
+		{
+			if( elm.for == 'loop' )
+			{
+				conductor.wait(%[
+					'movieperiod'+id+'_'+perLoop => function (id) { notifyRun(); isWaitPeriodEvent = false;} incontextof this,
+					'movieperiod'+id+'_arg' => id // ハンドラへの引数
+					]);
+			}
+			else if( elm.for == 'period' )
+			{
+				conductor.wait(%[
+					'movieperiod'+id+'_'+perPeriod => function (id) { notifyRun(); isWaitPeriodEvent = false;} incontextof this,
+					'movieperiod'+id+'_arg' => id // ハンドラへの引数
+					]);
+			}
+			else if( elm.for == 'prepare' )
+			{
+				conductor.wait(%[
+					'movieperiod'+id+'_'+perPrepare => function (id) { notifyRun(); isWaitPeriodEvent = false;} incontextof this,
+					'movieperiod'+id+'_arg' => id // ハンドラへの引数
+					]);
+			}
+			else if( elm.for == 'segLoop' )
+			{
+				conductor.wait(%[
+					'movieperiod'+id+'_'+perSegLoop => function (id) { notifyRun(); isWaitPeriodEvent = false;} incontextof this,
+					'movieperiod'+id+'_arg' => id // ハンドラへの引数
+					]);
+			}
+			else
+			{
+				return 0; // 引数が変
+			}
+		}
+		else
+		{
+			conductor.wait(%[
+				'movieperiod'+id+'_'+perLoop => function (id) { notifyRun(); isWaitPeriodEvent = false;} incontextof this,
+				'movieperiod'+id+'_'+perPeriod => function (id) { notifyRun(); isWaitPeriodEvent = false;} incontextof this,
+				'movieperiod'+id+'_'+perPrepare => function (id) { notifyRun(); isWaitPeriodEvent = false;} incontextof this,
+				'movieperiod'+id+'_'+perSegLoop => function (id) { notifyRun(); isWaitPeriodEvent = false;} incontextof this,
+				'movieperiod'+id+'_arg' => id // ハンドラへの引数
+				]);
+		}
+		notifyStable();
+		return -2;
+	}
+
+	//------------------------------------------------------- タグハンドラ群 --
+
+	function getHandlers()
+	{
+		return %[ // 辞書配列オブジェクト
+
+		/*
+			タグハンドラ群は、名前とそれに対応する関数のペアを列挙するもので、
+			関数名 : function(elm)
+			{
+				// 関数の中身
+			} incontextof this,
+			の書式を用いる。ただし、関数名が予約語の場合は、「関数名 : 」ではなく
+			「"関数名" => 」を用いる。
+			incontextof this は、関数が正しく このクラスの
+			オブジェクトのコンテキスト上で動くようにするために必要。
+		*/
+
+	//--------------------------------------- タグハンドラ群(メッセージ操作) --
+
+	ch : function(elm)
+	{
+		// 文字表示
+		var acs = actualChSpeed;
+		if(updateBeforeCh)
+		{
+			if(acs) { updateBeforeCh--; return -5; } else { updateBeforeCh--; }
+		}
+		var text = elm.text;
+		if(currentWithBack) current.comp.processCh(text);
+		if(current.processCh(text))
+		{
+			return showPageBreakAndClear();
+		}
+		if(historyWriteEnabled) historyLayer.store(text);
+		if(autoWCEnabled)
+		{
+			// 自動ウェイト
+			var ind;
+			if((ind = autoWCChars.indexOf(text)) != -1)
+			{
+				return int(acs * autoWCWaits[ind]);
+			}
+		}
+		return acs;
+	} incontextof this,
+
+	graph : function(elm)
+	{
+		// グラフィックを文字として表示
+		var acs = actualChSpeed;
+		if(updateBeforeCh)
+		{
+			if(acs) { updateBeforeCh--; return -5; } else { updateBeforeCh--; }
+		}
+		if(currentWithBack) current.comp.processGraph(elm);
+		if(current.processGraph(elm))
+		{
+			return showPageBreakAndClear();
+		}
+		if(historyWriteEnabled && elm.alt !== void) historyLayer.store(elm.alt);
+		return acs;
+	} incontextof this,
+
+	hch : function(elm)
+	{
+		// 縦中横
+		var acs = actualChSpeed;
+		if(updateBeforeCh)
+		{
+			if(acs) { updateBeforeCh--; return -5; } else { updateBeforeCh--; }
+		}
+		var text = elm.text;
+		var expand = elm.expand !== void && +elm.expand;
+		if(currentWithBack) current.comp.putHorizonCh(text, expand);
+		if(current.putHorizonCh(text, expand))
+		{
+			return showPageBreakAndClear();
+		}
+		if(historyWriteEnabled) historyLayer.store(text);
+		return acs;
+	} incontextof this,
+
+	r : function(elm)
+	{
+		// 改行
+		if(historyWriteEnabled) historyLayer.reline();
+		if(currentWithBack) current.comp.processReturn();
+		if(current.processReturn())
+		{
+			var ret = showPageBreakAndClear();
+			// 改行はpendingしない
+			if(ret == -5)
+				ret = -4;
+			else if(ret == -3)
+				ret = -2;
+			return ret;
+		}
+		return actualChSpeed;
+	} incontextof this,
+
+	ruby : function(elm)
+	{
+		// 次の文字に対するルビ設定
+		if(currentWithBack) current.comp.setRuby(elm.text);
+		current.setRuby(elm.text);
+		return 0;
+	} incontextof this,
+
+	font : function(elm)
+	{
+		// フォント設定
+		if(currentWithBack) current.comp.setFont(elm);
+		current.setFont(elm);
+		return 0;
+	} incontextof this,
+
+	deffont : function(elm)
+	{
+		// デフォルトのフォント設定
+		if(currentWithBack) current.comp.setDefaultFont(elm);
+		current.setDefaultFont(elm);
+		return 0;
+	} incontextof this,
+
+	resetfont : function(elm)
+	{
+		// フォントのリセット
+		if(currentWithBack) current.comp.resetFont();
+		current.resetFont();
+		return 0;
+	} incontextof this,
+
+	style : function(elm)
+	{
+		// スタイル設定
+		if(currentWithBack) current.comp.setStyle(elm);
+		current.setStyle(elm);
+		return 0;
+	} incontextof this,
+
+	defstyle : function(elm)
+	{
+		// デフォルトのスタイル設定
+		if(currentWithBack) current.comp.setDefaultStyle(elm);
+		current.setDefaultStyle(elm);
+		return 0;
+	} incontextof this,
+
+	resetstyle : function(elm)
+	{
+		// スタイルのリセット
+		if(currentWithBack) current.comp.resetStyle();
+		current.resetStyle();
+		return 0;
+	} incontextof this,
+
+	link : function(elm)
+	{
+		// ハイパーリンクの開始
+		if(currentWithBack) current.comp.beginHyperLink(elm);
+		current.beginHyperLink(elm);
+		return 0;
+	} incontextof this,
+
+	endlink : function(elm)
+	{
+		// ハイパーリンクの終了
+		if(currentWithBack) current.comp.endHyperLink(elm);
+		current.endHyperLink(elm);
+		return 0;
+	} incontextof this,
+
+	button : function(elm)
+	{
+		// グラフィカルボタン
+		if(currentWithBack) current.comp.addButton(elm);
+		current.addButton(elm);
+		return 0;
+	} incontextof this,
+
+	edit : function(elm)
+	{
+		// 単一行編集
+		if(currentWithBack) current.comp.addEdit(elm);
+		current.addEdit(elm);
+		return 0;
+	} incontextof this,
+
+	checkbox : function(elm)
+	{
+		// 単一行編集
+		if(currentWithBack) current.comp.addCheckBox(elm);
+		current.addCheckBox(elm);
+		return 0;
+	} incontextof this,
+
+	commit : function(elm)
+	{
+		// フォーム要素のコミット
+		current.commit();
+		return 0;
+	} incontextof this,
+
+    timeout : function(elm)
+    {
+        // タイムアウト処理の登録(カレントのみ)
+        current.addTimeout(elm);
+        return 0;
+    } incontextof this,
+
+    ctimeout : function(elm)
+    {
+        // タイムアウト処理の解除（カレントのみ）
+        current.clearTimeout();
+        return 0;
+    } incontextof this,
+
+    wheel : function(elm)
+    {
+        // ホイール処理の登録(カレントのみ)
+        current.addWheel(elm);
+        return 0;
+    } incontextof this,
+
+    cwheel : function(elm)
+    {
+        // ホイール処理の解除（カレントのみ）
+        current.clearWheel();
+        return 0;
+    } incontextof this,
+                  
+    click : function(elm)
+    {
+        // クリック処理の登録(カレントのみ)
+        current.addClick(elm);
+        return 0;
+    } incontextof this,
+
+    cclick : function(elm)
+    {
+        // クリック処理の登録(カレントのみ)
+        current.clearClick(elm);
+        return 0;
+    } incontextof this,
+
+	l : function(elm)
+	{
+		// 行クリック待ち
+		return showLineBreak(elm);
+	} incontextof this,
+
+	p : function(elm)
+	{
+		// ページクリック待ち
+		if(historyWriteEnabled) historyLayer.reline();
+		return showPageBreak(elm);
+	} incontextof this,
+
+	current : function(elm)
+	{
+		// 操作対象のメッセージレイヤの指定
+		setCurrentMessageLayer(elm);
+		return 0;
+	} incontextof this,
+
+	position : function(elm)
+	{
+		// メッセージレイヤの位置、属性を設定
+		getMessageLayerObjectFromElm(elm).setPosition(elm);
+		return 0;
+	} incontextof this,
+
+	ct : function(elm)
+	{
+		// メッセージレイヤのリセット(すべてのメッセージレイヤのクリアと
+		// current のリセット)
+		if(historyWriteEnabled) historyLayer.repage();
+		clearMessageLayers(true);
+		return 0;
+	} incontextof this,
+
+	cm : function(elm)
+	{
+		// メッセージレイヤのリセットを行うが、ct のように
+		// current のリセットは行わないもの
+		if(historyWriteEnabled) historyLayer.repage();
+		clearMessageLayers(false);
+		return 0;
+	} incontextof this,
+
+	er : function(elm)
+	{
+		// 現在のメッセージレイヤのクリア
+		if(historyWriteEnabled) historyLayer.repage();
+		if(currentWithBack) current.comp.clear();
+		current.clear();
+		return 0;
+	} incontextof this,
+
+	indent : function(elm)
+	{
+		// インデントの設定
+		if(currentWithBack) current.comp.setIndent();
+		current.setIndent();
+		if(historyWriteEnabled) historyLayer.beginIndent();
+		return 0;
+	} incontextof this,
+
+	endindent : function(elm)
+	{
+		// インデントの解除
+		if(currentWithBack) current.comp.resetIndent();
+		current.resetIndent();
+		if(historyWriteEnabled) historyLayer.endIndent();
+		return 0;
+	} incontextof this,
+
+	delay : function(elm)
+	{
+		// 文字表示速度の指定
+		setDelay(elm);
+		return 0;
+	} incontextof this,
+
+	nowait : function(elm)
+	{
+		// 一時的にノーウェイトで実行
+		enterNoWait();
+		return 0;
+	} incontextof this,
+
+	endnowait : function(elm)
+	{
+		// nowait の解除
+		leaveNoWait();
+		return 0;
+	} incontextof this,
+
+	locate : function(elm)
+	{
+		// 文字表示位置を指定
+		if(currentWithBack) current.comp.locate(elm.x, elm.y);
+		current.locate(elm.x, elm.y);
+		return 0;
+	} incontextof this,
+
+	glyph : function(elm)
+	{
+		// クリック待ち記号を指定
+		current.setGlyph(elm);
+		return 0;
+	} incontextof this,
+
+	locklink : function(elm)
+	{
+		// リンクのロック
+		lockMessageLayerSelProcess();
+		return 0;
+	} incontextof this,
+
+	unlocklink : function(elm)
+	{
+		// リンクのアンロック
+		unlockMessageLayerSelProcess();
+		return 0;
+	} incontextof this,
+
+	//----------------------------------------- タグハンドラ群(システム操作) --
+
+	loadplugin : function(elm)
+	{
+		// プラグインの読み込み
+		Plugins.link(elm.module);
+		dm("プラグインを読み込みました : " + elm.module);
+		return 0;
+	} incontextof this,
+
+	title : function(elm)
+	{
+		// タイトルの設定
+		setTitle(elm.name);
+		return 0;
+	} incontextof this,
+
+	s : function(elm)
+	{
+		// 実行停止
+		stablePosibility = true;
+		cancelSkip();
+		if(!usingExtraConductor) incRecordLabel(true);
+		inSleep = true;
+		if(recordHistoryOfStore == 2) // 2 : 選択肢 ( @s タグ ) ごと
+			setToRecordHistory();
+		notifyStable();
+
+        // メッセージレイヤタイムアウト呼び出し開始
+        current.startTimeout();
+
+		return -1;
+	} incontextof this,
+
+	clickskip : function(elm)
+	{
+		// クリックスキップの設定
+		clickSkipEnabled = +elm.enabled;
+		return 0;
+	} incontextof this,
+
+	nextskip : function(elm)
+	{
+		// 次の選択肢(/未読)まで進むの設定
+		nextSkipEnabled = +elm.enabled;
+		return 0;
+	} incontextof this,
+
+	cancelskip : function(elm)
+	{
+		// スキップの解除
+		cancelSkip();
+		return 0;
+	} incontextof this,
+
+	cancelautomode : function(elm)
+	{
+		// 「自動的に読み進む」の解除
+		cancelAutoMode();
+		return 0;
+	} incontextof this,
+
+	resetwait : function(elm)
+	{
+		// 時間原点の設定
+		resetWait();
+		return 0;
+	} incontextof this,
+
+	wait : function(elm)
+	{
+		// ウェイト
+		return doWait(elm);
+	} incontextof this,
+
+	wc : function(elm)
+	{
+		// 指定文字分のウェイト
+		return doWaitCh(elm);
+	} incontextof this,
+
+	waitclick : function(elm)
+	{
+		// クリックを待つ
+		return waitClick(elm);
+	} incontextof this,
+
+	rclick : function(elm)
+	{
+		// 右クリックの動作設定
+		setRightClickOptions(elm);
+		return 0;
+	} incontextof this,
+
+	history : function(elm)
+	{
+		// メッセージ履歴レイヤの設定
+		setHistoryOptions(elm);
+		return 0;
+	} incontextof this,
+
+	showhistory : function(elm)
+	{
+		// メッセージ履歴レイヤの表示
+		return showHistoryByScenario(elm);
+	} incontextof this,
+
+	hr : function(elm)
+	{
+		// メッセージ履歴レイヤに改行を出力
+		if(historyWriteEnabled)
+		{
+			if(elm.repage !== void && +elm.repage)
+				historyLayer.repage();
+			else
+				historyLayer.reline();
+		}
+		return 0;
+	} incontextof this,
+
+	hact : function(elm)
+	{
+		// メッセージ履歴にアクションを設定
+		if(historyWriteEnabled)
+			historyLayer.setNewAction(elm.exp);
+		return 0;
+	} incontextof this,
+
+	endhact : function(elm)
+	{
+		// メッセージ履歴のアクションをクリア
+		if(historyWriteEnabled)
+			historyLayer.clearAction();
+		return 0;
+	} incontextof this,
+
+	hidemessage : function(elm)
+	{
+		// メッセージを一時的に隠す
+		return hideMessageLayerByScenario(elm);
+	} incontextof this,
+
+	quake : function(elm)
+	{
+		// 揺れ
+		doQuake(elm);
+		return 0;
+	} incontextof this,
+
+	stopquake : function(elm)
+	{
+		// 揺れの停止
+		stopQuake();
+		return 0;
+	} incontextof this,
+
+	wq : function(elm)
+	{
+		// 揺れの停止を待つ
+		return waitQuake(elm);
+	} incontextof this,
+
+	autowc : function(elm)
+	{
+		// 自動ウェイト
+		setAutoWait(elm);
+		return 0;
+	} incontextof this,
+
+	cursor : function(elm)
+	{
+		// マウスカーソルの変更
+		setCursor(elm);
+		return 0;
+	} incontextof this,
+
+	close : function(elm)
+	{
+		// ウィンドウを閉じる
+		closeByScript(elm);
+		return -2;
+	} incontextof this,
+
+	copybookmark : function(elm)
+	{
+		// 栞をコピー
+		copyBookMark(+elm.from, +elm.to);
+		return 0;
+	} incontextof this,
+
+	erasebookmark : function(elm)
+	{
+		// 栞を削除
+		eraseBookMark(+elm.place);
+		return 0;
+	} incontextof this,
+
+	disablestore : function(elm)
+	{
+		// 栞を一時的に使用不可に
+		tempDisableStore(elm);
+		return 0;
+	} incontextof this,
+
+	store : function(elm)
+	{
+		// 栞の使用不可?使用可を設定する
+		setStoreEnabled(+elm.enabled);
+		return 0;
+	} incontextof this,
+
+	load : function(elm)
+	{
+		// 栞の読み込み
+		if(elm.ask !== void && +elm.ask)
+			loadBookMarkWithAsk(+elm.place);
+		else
+			loadBookMark(+elm.place);
+		return -4;
+	} incontextof this,
+
+	save : function(elm)
+	{
+		// 栞の読み込み
+		if(elm.ask !== void && +elm.ask)
+			saveBookMarkWithAsk(+elm.place);
+		else
+			saveBookMark(+elm.place);
+		return -4;
+	} incontextof this,
+
+	startanchor : function(elm)
+	{
+		// 「最初に戻る」の使用不可?使用可を設定する
+		setStartAnchorEnabled(elm.enabled === void || +elm.enabled);
+		return 0;
+	} incontextof this,
+
+	gotostart : function(elm)
+	{
+		// 「最初に戻る」
+		if(elm.ask !== void && +elm.ask)
+			goToStartWithAsk();
+		else
+			goToStart();
+		return -4;
+	} incontextof this,
+
+	goback : function(elm)
+	{
+		// 通過記録を戻る
+		if(elm.ask !== void && +elm.ask)
+			goBackHistory(true);
+		else
+			goBackHistory(false);
+		return -4;
+	} incontextof this,
+
+	record : function(elm)
+	{
+		// 通過記録をする
+		setToRecordHistory();
+		return 0;
+	} incontextof this,
+
+	tempsave : function(elm)
+	{
+		// 状態のメモリへの保存
+		tempSave(+elm.place);
+		return 0;
+	} incontextof this,
+
+	tempload : function(elm)
+	{
+		// 状態のメモリへの保存
+		tempLoad(+elm.place, elm);
+			//elm.se === void || +elm.se, elm.bgm === void || +elm.bgm,
+			//elm.backlay !== void && +elm.backlay);
+		return 0;
+	} incontextof this,
+
+	mappfont : function(elm)
+	{
+		// レンダリング済みフォントを現在のフォントにマッピング
+		mapPrerenderedFont(elm.storage);
+		return 0;
+	} incontextof this,
+
+	locksnapshot : function(elm)
+	{
+		// 画面のスナップショットをロックする
+		lockSnapshot();
+		return 0;
+	} incontextof this,
+
+	unlocksnapshot : function(elm)
+	{
+		// 画面のスナップショットのロックを解除する
+		unlockSnapshot();
+		return 0;
+	} incontextof this,
+
+	//------------------------------------------- タグハンドラ群(レイヤ操作) --
+
+	image : function(elm)
+	{
+		// 画像読み込み
+		updateBeforeCh = 1;
+		var start = System.getTickCount();
+		getLayerFromElm(elm).loadImages(elm);
+		dm(elm.storage + " の読み込みに " + (System.getTickCount() - start) + "ms かかりました");
+		return 0;
+	} incontextof this,
+
+	img : function(elm)
+	{
+		// 画像読み込み(imageとおなじ)
+		updateBeforeCh = 1;
+		var start = System.getTickCount();
+		getLayerFromElm(elm).loadImages(elm);
+		dm(elm.storage + " の読み込みに " + (System.getTickCount() - start) + "ms かかりました");
+		return 0;
+	} incontextof this,
+
+	pimage : function(elm)
+	{
+		// 部分追加画像読み込み
+		getLayerFromElm(elm).loadPartialImage(elm);
+		return 0;
+	} incontextof this,
+
+	ptext : function(elm)
+	{
+		// 背景/前景レイヤへの文字描画
+		getLayerFromElm(elm).drawReconstructibleText(elm);
+		return 0;
+	} incontextof this,
+
+	freeimage : function(elm)
+	{
+		// 画像のクリア
+		updateBeforeCh = 1;
+		getLayerFromElm(elm).freeImage(elm);
+		return 0;
+	} incontextof this,
+
+	animstart : function(elm)
+	{
+		// アニメーションの開始
+		updateBeforeCh = 1;
+		getLayerFromElm(elm).startAnim(elm);
+		return 0;
+	} incontextof this,
+
+	animstop : function(elm)
+	{
+		// アニメーションの停止
+		updateBeforeCh = 1;
+		getLayerFromElm(elm).stopAnim(+elm.seg);
+		return 0;
+	} incontextof this,
+
+	wa : function(elm)
+	{
+		// アニメーションの停止待ち
+		return waitAnimation(elm);
+	} incontextof this,
+
+	mapimage : function(elm)
+	{
+		// クリッカブルマップの領域画像を読み込む
+		getLayerFromElm(elm).loadProvinceImage(elm.storage);
+		return 0;
+	} incontextof this,
+
+	mapaction : function(elm)
+	{
+		// クリッカブルマップの領域アクション定義を読み込む
+		getLayerFromElm(elm).loadProvinceActions(elm.storage);
+		return 0;
+	} incontextof this,
+
+	mapdisable : function(elm)
+	{
+		// クリッカブルマップを無効にする
+		getLayerFromElm(elm).clearProvinceActions();
+		return 0;
+	} incontextof this,
+
+	backlay : function(elm)
+	{
+		// レイヤを裏画面にコピー
+		updateBeforeCh = 1;
+		backupLayer(elm, true);
+		return 0;
+	} incontextof this,
+
+	forelay : function(elm)
+	{
+		// レイヤを表画面にコピー
+		updateBeforeCh = 1;
+		backupLayer(elm, false);
+		return 0;
+	} incontextof this,
+
+	copylay : function(elm)
+	{
+		// 同種のレイヤ同士のコピー
+		updateBeforeCh = 1;
+		copyLayer(elm);
+		return 0;
+	} incontextof this,
+
+	layopt : function(elm)
+	{
+		// レイヤのオプションを設定
+		updateBeforeCh = 1;
+		getLayerFromElm(elm).setOptions(elm);
+		return 0;
+	} incontextof this,
+
+	trans : function(elm)
+	{
+		// トランジションの開始
+		getLayerPageFromElm(elm, false).beginTransition(elm);
+		return 0;
+	} incontextof this,
+
+	wt : function(elm)
+	{
+		// トランジションを待つ
+		return waitTransition(elm);
+	} incontextof this,
+
+	stoptrans : function(elm)
+	{
+		// トランジションを停止する
+		stopAllTransitions();
+		return 0;
+	} incontextof this,
+
+	move : function(elm)
+	{
+		// 自動移動の開始
+		getLayerFromElm(elm).beginMove(elm);
+		return 0;
+	} incontextof this,
+
+	// layer, page, fps, ox, oy
+	framemove : function(elm)
+	{
+		// フレーム指定自動移動の開始
+		getLayerFromElm(elm).beginFrameMove(elm);
+		return 0;
+	} incontextof this,
+
+	wm : function(elm)
+	{
+		//  自動移動を待つ
+		return waitMove(elm);
+	} incontextof this,
+
+	stopmove : function(elm)
+	{
+		// 自動移動を停止する
+		stopAllMoves();
+		return 0;
+	} incontextof this,
+
+	laycount : function(elm)
+	{
+		updateBeforeCh = 1;
+		allocateCharacterLayers(+elm.layers) if elm.layers !== void;
+		allocateMessageLayers(+elm.messages) if elm.messages !== void;
+		return 0;
+	} incontextof this,
+
+	//------------------------------ タグハンドラ群(効果音?BGM?ビデオ操作) --
+
+	playbgm : function(elm)
+	{
+		// BGM の演奏
+		bgm.play(elm);
+        clearBgmStop();
+        clearBgmLabel();
+		return 0;
+	} incontextof this,
+
+	stopbgm : function(elm)
+	{
+		// BGM の停止
+		bgm.stop();
+		return 0;
+	} incontextof this,
+
+	pausebgm : function(elm)
+	{
+		// BGM の一時停止
+		bgm.pause();
+		return 0;
+	} incontextof this,
+
+	resumebgm : function(elm)
+	{
+		// BGM の再開
+		bgm.resume();
+		return 0;
+	} incontextof this,
+
+	fadeinbgm : function(elm)
+	{
+		// BGM のフェードイン
+		bgm.fadeIn(elm);
+		return 0;
+	} incontextof this,
+
+	fadeoutbgm : function(elm)
+	{
+		// BGM のフェードアウト
+		bgm.fadeOut(elm);
+		return 0;
+	} incontextof this,
+
+	fadepausebgm : function(elm)
+	{
+		// BGM のフェードポーズ
+		bgm.fadePause(elm);
+		return 0;
+	} incontextof this,
+
+	fadebgm : function(elm)
+	{
+		// BGM の指定音量までのフェード
+		bgm.fade(elm);
+		return 0;
+	} incontextof this,
+
+	xchgbgm : function(elm)
+	{
+		// BGM の入れ替え/クロスフェード
+		bgm.exchange(elm);
+        clearBgmStop();
+        clearBgmLabel();
+		return 0;
+	} incontextof this,
+
+	bgmopt : function(elm)
+	{
+		// BGM のオプション設定
+		bgm.setOptions(elm);
+		return 0;
+	} incontextof this,
+    setbgmstop : function(elm)
+	{
+		// BGM の終了時コールバックの登録
+        setBgmStop(elm);
+        return 0;
+	} incontextof this,
+
+    clearbgmstop : function(elm)
+	{
+		// BGM の終了時コールバックの削除
+        clearBgmStop();
+        return 0;
+	} incontextof this,
+
+    setbgmlabel : function(elm) {
+        // BGM のラベル時コールバックの登録
+        setBgmLabel(elm);
+        return 0;
+    } incontextof this,
+
+    clearbgmlabel : function(elm)
+	{
+        // BGM のラベル時コールバックの削除
+        clearBgmLabel();
+        return 0;
+	} incontextof this,
+
+	wb : function(elm)
+	{
+		// BGM のフェード終了待ち
+		return waitBGMFade(elm);
+	} incontextof this,
+
+	wl : function(elm)
+	{
+		// BGM の再生終了待ち
+		return waitBGMStop(elm);
+	} incontextof this,
+
+	playse : function(elm)
+	{
+		// 効果音の再生
+		se[+elm.buf].play(elm);
+		return 0;
+	} incontextof this,
+
+	stopse : function(elm)
+	{
+		// 効果音の停止
+		se[+elm.buf].stop();
+		return 0;
+	} incontextof this,
+
+	fadeinse : function(elm)
+	{
+		// 効果音のフェードイン再生
+		se[+elm.buf].fadeIn(elm);
+		return 0;
+	} incontextof this,
+
+	fadeoutse : function(elm)
+	{
+		// 効果音のフェードアウト
+		se[+elm.buf].fadeOut(elm);
+		return 0;
+	} incontextof this,
+
+	fadese : function(elm)
+	{
+		// 効果音のフェード
+		se[+elm.buf].fade(elm);
+		return 0;
+	} incontextof this,
+
+	seopt : function(elm)
+	{
+		// 効果音のフェード
+		se[+elm.buf].setOptions(elm);
+		return 0;
+	} incontextof this,
+
+	wf : function(elm)
+	{
+		// 効果音のフェード終了待ち
+		return waitSEFade(elm);
+	} incontextof this,
+
+	ws : function(elm)
+	{
+		// 効果音の再生終了待ち
+		return waitSEStop(elm);
+	} incontextof this,
+
+	video : function(elm)
+	{
+		// ムービーのオプションを設定する
+		movies[+elm.slot].setOptions(elm);
+		return 0;
+	} incontextof this,
+
+	playvideo : function(elm)
+	{
+		// ムービーを再生する
+		movies[+elm.slot].play(elm.storage);
+		return 0;
+	} incontextof this,
+
+	stopvideo : function(elm)
+	{
+		// ムービーを停止する
+		movies[+elm.slot].stop();
+		return 0;
+	} incontextof this,
+
+	openvideo : function(elm)
+	{
+		// ムービー再生の準備をする
+		movies[+elm.slot].open(elm.storage);
+		return 0;
+	} incontextof this,
+
+	wv : function(elm)
+	{
+		// ムービーの再生終了を待つ
+		return waitMovieStop(elm);
+	} incontextof this,
+
+// Start: Add: T.Imoto
+	wp : function(elm)
+	{
+		// ムービーのピリオドイベントを待つ
+		return waitMoviePeriod(elm);
+	} incontextof this,
+
+	pausevideo : function(elm)
+	{
+		movies[+elm.slot].pause();
+		return 0;
+	} incontextof this,
+
+	resumevideo : function(elm)
+	{
+		movies[+elm.slot].resume();
+		return 0;
+	} incontextof this,
+
+	preparevideo : function(elm)
+	{
+		movies[+elm.slot].prepare();
+		return 0;
+	} incontextof this,
+
+	rewindvideo : function(elm)
+	{
+		movies[+elm.slot].rewind();
+		return 0;
+	} incontextof this,
+
+	videolayer : function(elm)
+	{
+		movies[+elm.slot].storeLayer( elm.layer, elm.page, elm.channel );
+		movies[+elm.slot].setVideoLayer(getLayerFromElm(elm),elm);
+		return 0;
+	} incontextof this,
+
+	clearvideolayer : function(elm)
+	{
+		movies[+elm.slot].cancelLayer( elm.channel );
+		movies[+elm.slot].setVideoLayer(null,elm);
+		return 0;
+	} incontextof this,
+
+	videosegloop : function(elm)
+	{
+		movies[+elm.slot].setSegment(elm);
+		return 0;
+	} incontextof this,
+
+	cancelvideosegloop : function(elm)
+	{
+		movies[+elm.slot].cancelSegmentLoop();
+		return 0;
+	} incontextof this,
+
+	videoevent : function(elm)
+	{
+		movies[+elm.slot].setPeriod(elm);
+		return 0;
+	} incontextof this,
+
+	cancelvideoevent : function(elm)
+	{
+		movies[+elm.slot].cancelPeriodEvent();
+		return 0;
+	} incontextof this,
+// End: Add: T.Imoto
+
+	//--------------------------------------- タグハンドラ群(変数?TJS 操作) --
+
+	eval : function(elm)
+	{
+		// 式の評価
+		Scripts.eval(elm.exp);
+		return 0;
+	} incontextof this,
+
+	trace : function(elm)
+	{
+		// 式のトレース表示
+		var exp = elm.exp;
+		var result = Scripts.eval(exp);
+		dm("▼[trace] expression=\"" + exp + "\" type of result=" + typeof result + 
+			" result=" + result);
+		return 0;
+	} incontextof this,
+
+	input : function(elm)
+	{
+		// 文字列の入力
+		inputString(elm);
+		return 0;
+	} incontextof this,
+
+	clearsysvar : function(elm)
+	{
+		// システム変数のクリア
+		clearSystemVariables();
+		return 0;
+	} incontextof this,
+
+	clearvar : function(elm)
+	{
+		// ゲーム変数のクリア
+		clearVariables();
+		return 0;
+	} incontextof this,
+
+	waittrig : function(elm)
+	{
+		// トリガを待つ
+		return waitTrigger(elm);
+	} incontextof this,
+
+	//----------------------------------------------- タグハンドラ群の終わり --
+
+		interrupt : function(elm) { return -2; } incontextof this ];
+	}
+}
+
+
+
+// TJS スクリプトはここで終わり
+"
+END_OF_TJS_SCRIPT
+# "; /*
+
+# assign でコピーすべき変数の再生成を行う perl スクリプト
+
+open FH, "MainWindow.tjs" or die;
+undef($/);
+$content = <FH>;
+
+$list_store = '';
+$list_restore = '';
+while($content =~ /\/\*C\*\/var\s+(\w+)/gs)
+{
+	$list_store .= "\t\tf.$1 = $1;\n";
+	$list_restore .= "\t\t$1 = f.$1 if f.$1 !== void;\n";
+}
+
+$content =~
+s/\t\t\/\/ \[start_store_vars\]\n.*?\t\t\/\/ \[end_store_vars\]/\t\t\/\/ \[start_store_vars\]\n$list_store\t\t\/\/ \[end_store_vars\]/s;
+$content =~
+s/\t\t\/\/ \[start_restore_vars\]\n.*?\t\t\/\/ \[end_restore_vars\]/\t\t\/\/ \[start_restore_vars\]\n$list_restore\t\t\/\/ \[end_restore_vars\]/s;
+
+open FH, ">MainWindow.tjs" or die;
+print FH $content;
+
+
+# */
+

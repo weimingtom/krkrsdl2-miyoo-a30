@@ -1,0 +1,8 @@
+// startup.tjs - スタートアップスクリプト
+// Copyright (C) 2001, W.Dee  改変?配布は自由です
+
+// 機能が欠落している吉里吉里のバージョンのポリフィル関数を初期化します。
+Scripts.execStorage("system_polyfill/PolyfillInitialize.tjs");
+
+// このスクリプトは一番最初に実行されるスクリプトです
+Scripts.execStorage("system/Initialize.tjs"); // system/Initialize.tjs を実行

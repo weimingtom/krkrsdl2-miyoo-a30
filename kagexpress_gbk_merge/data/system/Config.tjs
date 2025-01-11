@@ -1,0 +1,765 @@
+// Config.tjs - KAG 設定
+// Copyright (C) 2001-2007 W.Dee and contributors  改変?配布は自由です
+;global.config_version = "3.32 stable"; // この行を消さないでください
+
+// このファイル内で設定できる項目は、すべて
+// ;設定名 = 値;
+// の形式になっています。
+// 「追加の設定」を除いて、設定は各項目につき１行で記述する必要があります。
+
+
+//------------------------------------------------------- 全体の設定 -----
+
+
+// ◆ タイトル
+// ウィンドウのキャプション(タイトル)および
+// タスクバーに表示されるものです。
+;System.title = "吉里吉里";
+
+
+// ◆ シナリオ解析モード
+// シナリオファイル中の改行に従わせたい場合に false を設定します。
+// false を指定すると、KAG のシナリオ中の改行が、行末に \ または [p] を書か
+// ない限りそのままメッセージレイヤ上での改行として扱われます。
+// true を設定すると [r] タグを書かない限り改行されません。
+// KAG2.x 互換にするには false を指定してください。
+;global.ignoreCR = true;
+
+
+// ◆ 画像キャッシュ制限
+// 画像キャッシュの制限値を MB 単位で指定します。
+// gcsAuto を指定すると、自動的に決定されます。
+;System.graphicCacheLimit = gcsAuto; // 画像キャッシュリミット = 自動
+
+
+// ◆ global 追加の設定
+// 追加の設定項目がある場合は
+// [start-global-additionals] と [end-global-additionals] で囲まれた
+// 部分に設定を記述してください
+// ( [start-global-additionals] と [end-global-additionals] の行は
+//  編集したり消したりしないでください )
+
+//[start-global-additionals]
+
+//[end-global-additionals]
+
+
+
+
+//-------------------------------------------- ウィンドウや動作の設定 -----
+
+function KAGWindow_config()
+{
+// ◆ 画面サイズ
+// scWidth に画面の幅、scHeight に画面の高さをピクセル単位で指定します。
+// 標準的に使われている 640x480 や 800x600 のような画面サイズではないサイズ
+// に設定すると、フルスクリーンにできない場合があります。
+;scWidth = 640;
+;scHeight = 480;
+
+
+// ◆ 読みとり専用モード
+// readOnlyMode = true とすると、ディスクへのいっさいの書き込み動作をしなく
+// なります。CD-ROM 上から実行させるときなどに指定してください。
+// もちろん、その場合は栞の保存などができなくなります。
+;readOnlyMode = false;
+
+
+// ◆ フリーセーブ
+// 栞の保存形式を指定します。
+// false を指定すると、メニューバーの「栞をたどる」「栞をはさむ」の
+// サブメニュー項目からセーブデータを保存したり読み込んだりします。
+// この場合は保存可能な栞の最大の個数は numBookMarks によって制限
+// されます。
+// true を指定するとフリーセーブモードになり、「栞をたどる」では
+// 「開く」ダイアログボックス、「栞をはさむ」では「名前を付けて保存」ダイア
+// ログボックスが開き、栞を個別のファイルとして保存するモードになります。
+// この場合は 保存可能な栞の個数に制限はありません。また、
+// エクスプローラなどによる栞の管理が容易になります。
+;freeSaveDataMode = false;
+
+
+// ◆サムネイルを保存するか
+// false を指定すると、セーブデータの拡張子は .kdt になり、サムネイルは
+// 保存されません。
+// true を指定すると、セーブデータの拡張子は .bmp になり、エクスプローラや
+// 「開く」ダイアログボックスの「縮小版」表示でセーブ時点でのサムネイルを
+// 表示することができるようになります。
+;saveThumbnail = false;
+
+
+// ◆サムネイルの保存サイズ
+// サムネイルの横幅を指定します。saveThumbnail を true に設定しないとこの
+// 設定は意味がありません。
+// 横幅はピクセル単位で指定してください。たて幅は scWidth と scHeight の
+// 比と同じ比で自動的に計算されます。
+;thumbnailWidth = 133;
+
+// ◆サムネイルの保存モード
+// サムネイルの保存モードを指定します。saveThumbnail を true に設定しないとこの
+// 設定は意味がありません。
+// 8 を指定すると 256 色ビットマップで保存されます。
+// 24 を指定すると 24bitフルカラービットマップで保存されます。
+// 256色ビットマップの方がファイルサイズを小さく抑えることができますが、
+// 画質は悪くなります。
+;thumbnailDepth = 8;
+
+
+// ◆ データ名プレフィクス
+// ここで指定した名前で始まる名前で栞関連のファイルが作成されます。
+// フリーセーブモードの場合でもシステム変数やシステムの設定を保存する
+// ファイルに影響します。
+;dataName = "data";
+
+
+// ◆ データID
+// KAGが他の作品のセーブデータを間違って読み込まないように、作品固有の
+// IDを "" で囲って指定してください ( 何でもかまいません )。
+// 特にフリーセーブモードで重要になります。フリーセーブモードにしない場合は
+// それほど重要ではないです。
+// 他と重ならない一意なIDは↓で取得することもできます。
+// http://kikyou.info/uuidgen/uuidgen.php (出てきたIDをコピー&ペースト)
+// または 吉里吉里を起動して 「選択しない」ボタンを押し、Shift + F4 を押して
+// コンソールを表示させ、その下側の入力欄に
+//       System.createUUID()
+//       ( 先頭の // は含まず )
+// と入力して Enter キーを押しても取得することができます。
+// ( 例 : "371a6289-a084-ee18-2885-66314a0aa19d" )
+;saveDataID = "00000000-0000-0000-0000-000000000000";
+
+
+// ◆ 保存モード
+// "c" を指定すると栞が暗号化されます。
+// "z" を指定すると栞が圧縮されます。
+// "c" と "z" を両方指定することは出来ません。栞を圧縮すると
+// 簡単には読めないようなデータになるので、栞の圧縮は暗号化を
+// 兼ねています。
+// "" を指定すると栞の暗号化や圧縮はされません。
+;saveDataMode = "";
+
+
+// ◆ 栞にマクロの情報を保存するかどうか
+// 栞にマクロの情報を保存するかどうかを指定します。true を指定すると、KAG の
+// マクロの情報は栞に保存され、栞をたどる動作を行うと、栞を保存した状態のマ
+// クロが再現されます。
+// false を指定すると、KAG のマクロの情報は栞に保存されなく、栞をたどる動作
+// を行っても、現在のマクロの情報は変わりません。
+// 特に 毎回マクロ定義を 作品のはじめで行うような用途では、古いマクロの情報
+// が栞の読み込みによって新しいマクロの情報に上書きされてしまうことが開発の
+// 妨げになるため、false を指定した方がよいでしょう。
+;saveMacros = true;
+
+
+
+// ◆ 文字表示スピード (ミリ秒/文字)
+;chSpeeds.fast = 10; // 「高速」文字表示スピード
+;chSpeeds.normal = 30; // 「普通」文字表示スピード
+;chSpeeds.slow = 50; // 「遅い」文字表示スピード
+
+
+// ◆ 自動的に読み進むウェイト ページ末ウェイトの設定値 (ミリ秒)
+;autoModePageWaits.fast = 400; // 「短い」
+;autoModePageWaits.faster = 700; // 「やや短い」
+;autoModePageWaits.medium = 1000; // 「普通」
+;autoModePageWaits.slower = 1300; // 「やや遅い」
+;autoModePageWaits.slow = 2000; // 「遅い」
+
+
+// ◆ 自動的に読み進むウェイト [l] ウェイトの設定値 (ミリ秒)
+;autoModeLineWaits.fast = 180; // 「短い」
+;autoModeLineWaits.faster = 240; // 「やや短い」
+;autoModeLineWaits.medium = 300; // 「普通」
+;autoModeLineWaits.slower = 360; // 「やや遅い」
+;autoModeLineWaits.slow = 500; // 「遅い」
+
+
+// ◆ マウスカーソル
+// マウスカーソルを指定します。マウスカーソルは cr で始まるマウスカーソル定
+// 数 ( 吉里吉里２ SDK Help 参照 ) か、マウスカーソルファイル名である必要が
+// あります。アニメーションマウスカーソルも指定できます。
+// マウスカーソル定数を指定するときは、cursor タグで指定するように先頭に &
+// をつける必要はありません。マウスカーソルファイル名を指定する場合は "" 
+// (ダブルクオーテーション) でくくってください。
+;cursorDefault = crArrow; // 通常のマウスカーソル
+;cursorPointed = crHandPoint; // リンクなどをポイントしたとき
+;cursorWaitingClick = crArrow; // クリック待ちの時
+;cursorDraggable = crSizeAll; // メッセージレイヤをドラッグ可能なとき
+
+
+// ◆ ラベル記録
+// 自動的に「読んだ」ラベルを記録するかどうかを指定します。
+// この設定が false でなく true になっていると、ラベルを読むごとにシステム
+// 変数 (sf) に
+// trail_シナリオファイル名_ラベル名
+// という変数名の変数に 1 が加算されます。
+// たとえば first.ks の *start というラベルであれば trail_first_start とい
+// う変数名になります。まだ通過していないカ所では 未定義 ( 0 として見なされ
+// ます ) になっています。
+// 「読む」というのは、ラベルから、そのラベルの終了までをすべてシナリオが実
+// 行されたときになって初めて「読んだ」とみなされます。
+// 「ラベルの終了」とは、以下の場合に終了とされ、そのラベルは「読んだ」とさ
+// れます。
+//
+// ?[s] タグやシナリオの終端に達した
+// ?次のラベルが現れた
+// ?jump タグでジャンプした
+// ?link や button でのリンク先へのジャンプ
+//    ( 文章を表示しきっていない場合でも リンク先へジャンプすると「読んだ」
+//      と見なされるので注意; link や button タグの countpage 属性を参照 )
+// ?return タグで戻るとき ( call で飛ぶときは終了とは見なされません )
+;autoRecordPageShowing = true;
+
+
+// ◆ 通過記録
+// 通過記録を自動的に行うかどうかを指定します。
+// ラベル記録とは違います。
+// 通過記録を行うと、「システム - 前に戻る」で、直前に
+// 通過記録を行った箇所に戻ることができます。
+// 0 を指定すると自動的には通過記録を行いません ( record タグで手動で通過記
+//   録を行うことはできます )
+// 1 を指定すると 保存可能なラベルを通過するごとに自動的に通過記録を行いま
+//   す。
+// 2 を指定すると選択肢 ( s タグで停止 ) ごとに通過記録を行います。
+;recordHistoryOfStore = 0;
+
+
+// ◆ 通過記録の最大数
+// 通過記録の最大数を指定します。最大、ここで指定した回数、前に戻る事ができ
+// ます。大きくするとセーブデータも大きくなります。
+;maxHistoryOfStore = 5;
+
+
+// ◆ quake の time 属性値
+// true とすると quake の time 属性の単位が delay で指定した文字表示速度に
+// 基づくようになります。false を指定すると ms (ミリ秒) 単位で指定すること
+// になります。KAG 2.x 互換にするには true を指定してください。
+;defaultQuakeTimeInChUnit = false;
+
+
+// ◆ 利用可能な効果音バッファの数
+// 利用可能な効果音バッファの最大値を指定します。つまり、ここで指定した数の
+// 分だけ効果音を同時に再生できます。効果音を使用しない場合は 0 を指定して
+// かまいません。
+;numSEBuffers = 3;
+
+
+// ◆ ムービーオブジェクトの数
+// 利用可能なムービーオブジェクトの最大値を指定します。つまり、ここで指定し
+// た数の分だけムービーを同時に再生できます。
+;numMovies = 1;
+
+
+// ◆ 初期状態の前景レイヤの数
+// 必要なければ 0 を指定してかまいません。
+// 数が多いと速度が低下したりメモリを消費しますので、必要以上に大きな数を指
+// 定しない方が良いでしょう。
+// laycount タグでシナリオ内でも変更できます。
+;numCharacterLayers = 3;
+
+
+// ◆ 前景レイヤの左右中心位置指定
+// +---------+
+// |         |
+// | |  |  | |
+// | |  |  | |
+// +---------+
+// image タグあるいは img タグの pos 属性で指定する前景レイヤの 位置名 (
+// left や lecft_center など ) とそれぞれに対応する 中心位置 ( x 座標 ) を
+// 指定します。;scPositionX.位置名 = 中心位置; の形式で指定します。
+;scPositionX.left = 160;
+;scPositionX.left_center = 240;
+;scPositionX.center = 320;
+;scPositionX.right_center = 400;
+;scPositionX.right = 480;
+
+
+// 簡易な記号
+// ( pos 属性に指定する left, left_center, center, right_center, right を
+//  それぞれ l, lc, c, rc, r でも指定できるように別名を定義します )
+;scPositionX.l = scPositionX.left;
+;scPositionX.lc = scPositionX.left_center;
+;scPositionX.c = scPositionX.center;
+;scPositionX.rc = scPositionX.right_center;
+;scPositionX.r = scPositionX.right;
+
+
+// ◆ 初期状態のメッセージレイヤの数
+// 前景レイヤと違って、0 を指定することはできません。これも必要な数だけ確保
+// するようにすべきです。laycount タグでシナリオ内でも変更できます。
+;numMessageLayers = 2;
+
+
+// ◆ 初期状態でメッセージレイヤを表示するかどうか
+// true を指定するとメッセージレイヤ0が初期状態で表示状態になりますが、
+// false を指定すると初期状態ではすべてのメッセージレイヤは初期状態で非表示
+// になります。
+;initialMessageLayerVisible = true;
+
+
+// ◆ 利用可能な栞の数
+// メニューに表示し、ユーザーが選択可能な栞の数です。
+// save や load タグで保存可能な栞の数はこの設定には影響しません。
+// メニューによる栞の管理を行わない場合 ( ゲーム画面中で全部栞の管理などを
+// 行う場合など ) は、numBookMarks は必要な数に設定し、restoreMenu.visible と
+// storeMenu.visible を false に設定してください。
+;numBookMarks = 10;
+
+
+// ◆ 栞に日付を併記するか
+// true に設定すると、栞メニューの項目の横に YY/MM/DD HH:MMの形式で栞を保存
+// した日付?時刻が表示されます。
+;showBookMarkDate = true;
+
+
+// ◆ フォント選択で固定ピッチフォントのみを表示するか
+// true を指定すると、フォント選択ウィンドウで固定ピッチフォントのみを表示
+// するようになります。
+;showFixedPitchOnlyInFontSelector = false;
+
+
+// ◆ 「ヘルプ > 目次」を選択したときに実行するファイル
+// ここで指定するファイルは吉里吉里実行可能ファイルと同じ場所に設置されてい
+// なければなりません。
+;helpFile = "readme.txt";
+
+
+// ◆ 「ヘルプ > このソフトについて」を選択したときにでる
+// ウィンドウの表示領域のサイズ
+// このメニューを選択すると about.ks がそのウィンドウ内で実行されます。
+;aboutWidth = 320; // 幅
+;aboutHeight = 200; // 高さ
+
+
+// ◆ ウィンドウや動作の追加の設定
+// 追加の設定項目がある場合は
+// [start-window-additionals] と [end-window-additionals] で囲まれた
+// 部分に設定を記述してください
+// ( [start-window-additionals] と [end-window-additionals] の行は
+//  編集したり消したりしないでください )
+
+//[start-window-additionals]
+
+//[end-window-additionals]
+
+}
+
+
+//---------------------------------------------------- メニューの設定 -----
+
+function Menu_visible_config()
+{
+// メニューの表示/非表示の設定
+// true を指定すると表示され、false を指定すると非表示になります。
+// メニューに表示するメニュー項目名については Menus.tjs を書き換えてくださ
+// い。
+
+
+// ◆ メニューバーを表示するか
+// 非表示にすると当然どのメニュー項目にもアクセスできなくなります。
+;menu.visible = true;
+
+
+// ◆ 「システム > メッセージを消す」
+// このメニュー項目を非表示にしてもマウスの右クリックでのメッセージの
+// 非表示は引き続き有効です。
+;rightClickMenuItem.visible = true;
+
+
+// ◆ 「システム > メッセージ履歴の表示」
+;showHistoryMenuItem.visible = true;
+
+
+// ◆ 「システム > 次の選択肢/未読まで進む」または「次の選択肢まで進む」
+;skipToNextStopMenuItem.visible = true;
+
+
+// ◆ 「システム > 自動的に読み進む」
+;autoModeMenuItem.visible = true;
+
+
+// ◆ 「システム > 自動的に読み進むウェイト」
+;autoModeWaitMenu.visible = true;
+
+
+// ◆ 「システム > 前に戻る」
+;goBackMenuItem.visible = true;
+
+
+// ◆ 「システム > 最初に戻る」
+;goToStartMenuItem.visible = true;
+
+
+// ◆ 「文字表示」
+;characterMenu.visible = true;
+
+
+// ◆ 「文字表示 > 表示速度 > ページ末まで一気に」
+// ユーザがこのメニュー項目をチェックすると、
+// l タグが無視されるようになります。
+;chNonStopToPageBreakItem.visible = true;
+
+
+// ◆ 「文字表示 > 一度読んだところは」
+;ch2ndSpeedMenu.visible = true;
+
+
+// ◆ 「文字表示 > 一度読んだところは > ページ末まで一気に」
+;ch2ndNonStopToPageBreakItem.visible = true;
+
+
+// ◆ 「文字表示 > アンチエイリアス」
+;chAntialiasMenuItem.visible = true;
+
+
+// ◆ 「文字表示 > フォント」
+;chChangeFontMenuItem.visible = true;
+
+
+// ◆ 「栞をたどる」
+;restoreMenu.visible = true;
+
+
+// ◆ 「栞をはさむ」
+;storeMenu.visible = true;
+
+
+// ◆ 「画面」
+;displayMenu.visible = true;
+
+
+// ◆ 「ヘルプ」
+;helpMenu.visible = false;
+
+
+// ◆ 「ヘルプ > 目次 ...」
+;helpIndexMenuItem.visible = true;
+
+
+// ◆ 「ヘルプ > このソフトについて ...」
+;helpAboutMenuItem.visible = true;
+
+
+// ◆ 「デバッグ」
+;debugMenu.visible = false;
+
+
+// ◆ メニュー 追加の設定
+// 追加の設定項目がある場合は
+// [start-menu-additionals] と [end-menu-additionals] で囲まれた
+// 部分に設定を記述してください
+// ( [start-menu-additionals] と [end-menu-additionals] の行は
+//  編集したり消したりしないでください )
+
+//[start-menu-additionals]
+
+//[end-menu-additionals]
+
+}
+
+//-------------------------------------------- メッセージレイヤの設定 -----
+
+
+function MessageLayer_config()
+{
+// ◆ メッセージレイヤの表示モード
+// メッセージレイヤをどのモードで表示するかを指定します。
+// ltAddAlpha は KAG3 3.23 beta 5 から指定可能なモードで、
+// ltAlpha よりも処理が若干高速です。
+// ltAlpha はそれ以前の KAG と互換性のあるモードです。
+// ltAddAlpha を指定した場合は、frameGraphic で指定する
+// メッセージ枠用の画像も、ltAddAlpha 用に作成された
+// 画像を用いる必要があります (自動的には判別されません)。
+// ltAddAlpha 用の画像は画像フォーマットコンバータで作成可能です。
+;layerType = ltAddAlpha;
+
+// ◆ メッセージ枠用の画像
+// メッセージ枠用の画像のファイル名を指定します。
+// "" を指定するとメッセージ枠の画像を使用しません。また、メッセージ枠用の
+// 画像を指定した場合、position タグでメッセージレイヤのサイズを変更すると
+// おかしな表示になると思います
+;frameGraphic = "";  // position タグの frame 属性に相当
+
+
+// ◆ メッセージレイヤの色と不透明度
+// frameColor には 0xRRGGBB 形式で ( RR GG BB はそれぞれ 2 桁の 16 進数)
+// メッセージレイヤの色を指定します。frameOpacity には 0 ? 255 の数値で、
+// 不透明度を指定します。メッセージ枠用の画像が指定されている場合は無効で
+// す。
+;frameColor = 0x000000; // position タグの color 属性に相当
+;frameOpacity = 128;  // position タグの opacity 属性に相当
+
+
+// ◆ 左右上下マージン
+// マージン (余白) を pixel 単位で指定します。メッセージ枠用の画像を指定し
+// た場合は、メッセージ枠の表示範囲内に設定する必要があります。
+// これらは、position タグの marginl, maringt, marginr, marginb 属性に対応
+// します。
+;marginL = 8; // 左余白
+;marginT = 8; // 上余白
+;marginR = 8; // 右余白
+;marginB = 8; // 下余白
+
+
+// ◆ 初期位置
+// これらは、position タグのそれぞれ left top width height の属性に対応しま
+// す。
+;ml = 16;  // 左端位置
+;mt = 16;  // 上端位置
+;mw = 640-32;   // 幅
+;mh = 480-32;   // 高さ
+
+
+// ◆ 自動改行/改ページ
+// true を設定すると、行末での自動改行、ページ末での自動改ページが行われま
+// す。false を設定するとこれらが行われない他、禁則処理等もされなくなりま
+// す。
+;defaultAutoReturn = true; 
+
+
+// ◆ 右文字マージン
+// 禁則処理用にあけておく右端の文字数を指定します。
+// (縦書きモードでは下端の文字数であると解釈されます)
+;marginRCh = 2;
+
+
+// ◆ 文字の大きさ
+// デフォルトの文字の大きさ ( 高さ ) を pixel 単位で指定します。
+;defaultFontSize = 24;  // deffont タグの size 属性に相当
+
+
+// ◆ 行間
+// 行間を pixel 単位で指定します。
+;defaultLineSpacing = 6; // defstyle タグの linespacing 属性に相当
+
+// ◆ 字間
+// 字間を pixel 単位で指定します。
+// デフォルトは 0 で、正あるいは負のオフセットで指定します。
+// 負の数値を指定すると字間が詰まります。正の数値を指定すると字間が空きま
+// す。
+;defaultPitch = 0; // defstyle タグの pitch 属性に相当
+
+
+// ◆ 文字の書体
+// デフォルトのフォント名を指定します。
+// この設定はシステム変数に記録されて、次回起動時に引き継がれるので、
+// userFace の設定を変更し、適用したい場合はシステム変数ファイル
+// ?????sc.* の "chdefaultFace" => の行を削除してください。
+// (あるいはシステム変数ファイルを消してください)
+// カンマで区切って複数のフォントを指定することができます。その場合は、最初
+// の方に書いたフォントが存在すれば、優先されます。
+;userFace = "ＭＳ Ｐ明朝"; // deffont タグの face 属性に相当
+
+
+// ◆ 文字の色
+// デフォルトの文字の色を 0xRRGGBB 形式で指定します。
+;defaultChColor = 0xffffff;  // deffont タグの color 属性に相当
+
+
+// ◆ 文字をボールドにするか
+// する場合は true, しない場合は false を指定します。
+;defaultBold = true; // deffont タグの bold 属性に相当
+
+
+// ◆ ルビサイズ
+// ルビサイズを pixel 単位で指定します。
+;defaultRubySize = 10; // deffont タグの rubysize に相当
+
+
+// ◆ ルビ の表示オフセット
+// 負の数を指定するとその pixel 数分、本文に近い位置に表示されます。
+;defaultRubyOffset = -2; // deffont タグの rubyoffset に相当
+
+
+// ◆ アンチエイリアス文字描画をするか
+// する場合は true, しない場合は false を指定します。
+;defaultAntialiased = true;
+
+
+// ◆ 影の色
+// 影の色を 0xRRGGBB 形式で指定します。
+;defaultShadowColor = 0x000000;  // deffont タグの shadowcolor に属性に相当
+
+// ◆ 縁取りの色
+// 縁取りの色を 0xRRGGBB 形式で指定します。
+;defaultEdgeColor = 0x000000;  // deffont タグの edgecolor に属性に相当
+
+
+// ◆ 影を描画するか
+// する場合は true, しない場合は false を指定します。
+;defaultShadow = true;  // deffont タグの shadow 属性に相当
+
+
+// ◆ 縁取りをするか
+// する場合は true, しない場合は false を指定します。KAG3 から、縁取りと影
+// を同時に描画することができなくなりました。縁取りを指定した場合は縁取りが
+// 優先されます。
+;defaultEdge = false;  // deffont タグの edge 属性に相当
+
+
+// ◆ クリック待ちグリフの画像ファイル
+// 画像の作り方は、アニメーションレイヤ ( AnimationLayer.tjs ) 内を参照して
+// ください。拡張子は指定しないでください。
+// カラーキーを指定する必要がある場合はシナリオ中で glyph タグで指定してく
+// ださい。
+
+// 行末クリック待ちグリフ
+;lineBreakGlyph = "LineBreak";  // glyph タグの line 属性に相当
+
+
+// ページ末クリック待ちグリフ
+;pageBreakGlyph = "PageBreak";  // glyph タグの page 属性に相当
+
+
+// ◆ クリック待ちグリフを固定した場所に表示するかどうか
+// false を指定すると、クリック待ち記号(グリフ)は、現在の文字表示位置に表示
+// されます。true を指定すると、クリック待ち記号は、 glyphFixedLeft や
+// glyphFixedTop で指定した位置に表示されます。
+;glyphFixedPosition = false;  // glyph タグの fix 属性に相当
+
+
+// ◆ クリック待ちグリフを固定した場所に表示するときの位置
+// glyphFixedLeft にはグリフを表示する左端位置を、glyphFixedTop にはグリフ
+// を表示する上端位置を指定してください。
+;glyphFixedLeft = 0;  // glyph タグの left 属性に相当
+;glyphFixedTop = 0;  // glyph タグの top 属性に相当
+
+
+// ◆ リンクの強調色
+// リンクを選択したときに出る半透明矩形のデフォルトの色です。
+;defaultLinkColor = 0x0080ff;  // link タグの color 属性に相当
+
+
+// ◆ リンクの不透明度
+// リンクを選択したときに出る半透明矩形の不透明度です。
+;defaultLinkOpacity = 64;
+
+
+// ◆ 縦書きモード
+// メッセージレイヤを標準で縦書きモードにする場合は false ではなく true を
+// 指定してください。
+;vertical = false;
+
+
+// ◆ マウスでドラッグ可能か
+// true に設定すると、marginR, marginL, marginT, marginB で設定したマージン
+// 外の部分で、かつフレーム画像の不透明度が 64 以上の箇所をマウスでつかんで
+// メッセージレイヤをユーザが移動できるようになります。
+;draggable = false;  // position タグの draggable 属性に相当
+
+
+// ◆ メッセージレイヤ 追加の設定
+// 追加の設定項目がある場合は
+// [start-messagelayer-additionals] と [end-messagelayer-additionals] で囲
+// まれた部分に設定を記述してください
+// ( [start-messagelayer-additionals] と [end-messagelayer-additionals] の
+// 行は編集したり消したりしないでください )
+
+//[start-messagelayer-additionals]
+
+//[end-messagelayer-additionals]
+
+}
+
+//-------------------------------------------------------- BGM の設定 -----
+
+
+function BGM_config()
+{
+// BGM の設定です。
+
+// ◆ クロスフェードを行うか
+// doubleBuffered 変数には、サウンドバッファを２つ使用するかどうかを指定し
+// ます。true に設定するとサウンドバッファが 2 つ用意され、クロスフェードが
+// 可能になります。
+// MIDI サウンドバッファで複数同時再生を意図していないデータを使う場合や、
+// CDDA サウンドバッファを使う場合は false に指定してください。
+;doubleBuffered = true;
+
+
+// ◆ BGM 追加の設定
+// 追加の設定項目がある場合は
+// [start-bgm-additionals] と [end-bgm-additionals] で囲まれた
+// 部分に設定を記述してください
+// ( [start-bgm-additionals] と [end-bgm-additionals] の行は
+//  編集したり消したりしないでください )
+
+//[start-bgm-additionals]
+
+//[end-bgm-additionals]
+
+}
+
+//---------------------------------------------- メッセージ履歴の設定 -----
+
+
+function HistoryLayer_config()
+{
+// メッセージ履歴の設定です
+
+
+// ◆ フォント名
+;fontName = "ＭＳ Ｐ明朝";
+
+
+// ◆ フォントを太字にするか
+;fontBold = true;
+
+
+// ◆ フォントのサイズ ( pixel単位)
+;fontHeight = 24;
+
+
+// ◆ ラインの高さ
+;lineHeight = 26;
+
+
+// ◆ 縦書きの場合は true
+;verticalView = false;
+
+
+// ◆ ページ単位での閲覧を行うかどうか
+// ページ単位での閲覧をするようになると
+// cm ct er タグ、あるいは repage 属性が true の hr タグ
+// でメッセージ履歴の改ページを行うようになります。
+;everypage = false;
+
+
+// ◆ 自動改行を行うかどうか
+;autoReturn = true;
+
+
+// ◆ 履歴保持最大数
+// 「◆ ページ単位での閲覧を行うかどうか」を true に設定した場合は
+// maxPages をページ単位で、false に設定した場合は maxLines を行単位で
+// 指定してください。
+;maxPages = 100;
+;maxLines = 2000;
+
+
+// ◆ 栞にメッセージ履歴を保存するか
+// true を指定すると栞にメッセージ履歴が保存されるように
+// なりますが、栞のデータサイズが大きくなります。
+;storeState = false;
+
+
+// ◆ メッセージ履歴 追加の設定
+// 追加の設定項目がある場合は
+// [start-historylayer-additionals] と [end-historylayer-additionals] で囲
+// まれた部分に設定を記述してください
+// ( [start-historylayer-additionals] と [end-historylayer-additionals] の行は
+//  編集したり消したりしないでください )
+
+//[start-historylayer-additionals]
+
+//[end-historylayer-additionals]
+
+}
+
+
+
+
+
+// ---------
+// このファイルのこれ以降は設定できる項目はありません
+
+

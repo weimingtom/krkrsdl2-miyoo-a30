@@ -1,0 +1,39 @@
+when exiting
+
+Thread 1 "krkrsdl2" received signal SIGSEGV, Segmentation fault.
+0x0000555555742764 in tTVPLayerManager::PrimaryMouseUp (this=0x55555772d2e0, x=99, y=41, mb=mbLeft, flags=0) at external/krkrz/visual/LayerManager.cpp:404
+404				ReleaseCapture();
+(gdb) bt
+#0  0x0000555555742764 in tTVPLayerManager::PrimaryMouseUp (
+    this=0x55555772d2e0, x=99, y=41, mb=mbLeft, flags=0)
+    at external/krkrz/visual/LayerManager.cpp:404
+#1  0x0000555555744bd8 in tTVPLayerManager::NotifyMouseUp (
+    this=0x55555772d2e0, x=241, y=411, mb=mbLeft, flags=0)
+    at external/krkrz/visual/LayerManager.h:347
+#2  0x0000555555a26826 in tTVPDrawDevice::OnMouseUp (this=0x55555655cb00, 
+    x=241, y=411, mb=mbLeft, flags=0)
+    at external/krkrz/visual/DrawDevice.cpp:289
+#3  0x000055555575fdd6 in tTJSNI_BaseWindow::OnMouseUp (this=0x555556407060, 
+    x=241, y=411, mb=mbLeft, flags=0)
+    at external/krkrz/visual/WindowIntf.cpp:467
+#4  0x00005555555ad69f in tTVPOnMouseUpInputEvent::Deliver (
+    this=0x7ffff0000f70) at ./external/krkrz/visual/WindowIntf.h:442
+#5  0x00005555555b2e6a in _TVPDeliverAllEvents2 ()
+    at external/krkrz/base/EventIntf.cpp:538
+#6  0x00005555555b2f28 in _TVPDeliverAllEvents ()
+    at external/krkrz/base/EventIntf.cpp:573
+#7  0x00005555555b2f8e in TVPDeliverAllEvents ()
+    at external/krkrz/base/EventIntf.cpp:594
+#8  0x0000555555830096 in tTVPSystemControl::DeliverEvents (
+    this=0x555555fa90f0) at src/core/environ/sdl2/SystemControl.cpp:142
+#9  0x000055555582ffeb in tTVPSystemControl::ApplicationIdle (
+--Type <RET> for more, q to quit, c to continue without paging--
+    this=0x555555fa90f0) at src/core/environ/sdl2/SystemControl.cpp:124
+#10 0x000055555582e2d6 in tTVPApplication::Run (this=0x555555ed8e40)
+    at src/core/environ/sdl2/Application.cpp:784
+#11 0x00005555555ab4e0 in process_events ()
+    at src/core/sdl2/SDLApplication.cpp:3001
+#12 0x00005555555abd6a in main (argc=1, argv=0x7fffffffdf38)
+    at src/core/sdl2/SDLApplication.cpp:3124
+
+
