@@ -20,7 +20,7 @@ make MIYOO=2 clean
 make MIYOO=2 -j8
 make MIYOO=2 -j8 && make MIYOO=2 install && make MIYOO=2 run  
 ```
-* For TRIMUI SMART PRO
+* For PC Xubuntu 20.04, by VirtualBox  
 ```
 make MIYOO=0 clean
 make MIYOO=0 -j8
