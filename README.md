@@ -15,6 +15,11 @@ https://code.google.com/archive/p/godxq1986/downloads
 * Key mapping bad, especially MIYOO A30 not fixed. TRIMUI will be better.  
 * MIYOO A30 works slowly, because of screen rotation of 90 degrees (or 270 degrees), NOT machine's reason.     
 
+## ARM GCC Toolchains, need to modify Makefile by manual    
+* (for miyoo a30) https://github.com/XK9274/a30-sdk-miyoo/releases/tag/16042024   
+* (for Trimui Smart Pro and Trimui Brick, aarch64) https://github.com/trimui/toolchain_sdk_smartpro/releases/tag/20231018    
+* (for Xubuntu 20.04 64bit) sudo apt install gcc g++ gdb libsdl2-dev  
+
 ## Usage and Debugging (after copy resource files)     
 * For TRIMUI SMART PRO, after adb shell 'killall -KILL runtrimui.sh MainUI'  
 ```
