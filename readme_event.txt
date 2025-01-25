@@ -458,8 +458,8 @@ L2(LR)=9=4000004F=Right
 R1(RR)=5=73=S
 R2(RL)=10=30=0
 
-VolumnUp=14=0x40000080=VolumnUp
-VolumnDown=13=0x40000081=VolumnDown
+VolumeUp=14=0x40000080=VolumeUp
+VolumeDown=13=0x40000081=VolumeDown
 */
 
     ONS_Key/*SDLKey*/ button_map[] = { SDLK_RETURN, /* 0=rg.A SDLK_ESCAPE*/
@@ -477,8 +477,8 @@ SDLK_s/*fast*/,
                             SDLK_DOWN,       /* 10=rg.R2   */
                             SDLK_UNKNOWN,/* 11=rg.Menu.repeat    */
                             SDLK_UNKNOWN,/* 12=N/A     */
-                            SDLK_UNKNOWN,/* 13=VolumnDown     */
-                SDLK_UNKNOWN,/* 14=VolumnUp     */};
+                            SDLK_UNKNOWN,/* 13=VolumeDown     */
+                SDLK_UNKNOWN,/* 14=VolumeUp     */};
 if (button == 8/*rg.menu*/) {
     //endCommand();
         SDL_Event event;
@@ -594,8 +594,8 @@ L2(LR)=9=4000004F=Right
 R1(RR)=5=73=S
 R2(RL)=10=30=0
 
-VolumnUp=14=0x40000080=VolumnUp
-VolumnDown=13=0x40000081=VolumnDown
+VolumeUp=14=0x40000080=VolumeUp
+VolumeDown=13=0x40000081=VolumeDown
 */
 
     ONS_Key/*SDLKey*/ button_map[] = { SDLK_RETURN, /* 0=rg.A SDLK_ESCAPE*/
@@ -613,8 +613,8 @@ SDLK_s/*fast*/,
                             SDLK_DOWN,       /* 10=rg.R2   */
                             SDLK_UNKNOWN,/* 11=rg.Menu.repeat    */
                             SDLK_UNKNOWN,/* 12=N/A     */
-                            SDLK_UNKNOWN,/* 13=VolumnDown     */
-                SDLK_UNKNOWN,/* 14=VolumnUp     */};
+                            SDLK_UNKNOWN,/* 13=VolumeDown     */
+                SDLK_UNKNOWN,/* 14=VolumeUp     */};
 if (button == 8/*rg.menu*/) {
     //endCommand();
         SDL_Event event;
