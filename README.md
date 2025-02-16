@@ -10,7 +10,7 @@ https://github.com/krkrsdl2/krkrsdl2/tree/638f8203c202163971ae1c483a2316ffcb9ef0
 * The data.xp3 for 'make test' is from Spring Days, using kirikiri2 engine  
 https://code.google.com/archive/p/godxq1986/downloads   
 
-## About what is xp3filter.tjs and patch.tjs   
+## About what are xp3filter.tjs and patch.tjs   
 * kirikiroid2调试，一张梗图：  
 https://tieba.baidu.com/p/8962163653    
 
