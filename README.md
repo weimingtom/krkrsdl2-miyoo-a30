@@ -19,6 +19,10 @@ https://tieba.baidu.com/p/8962163653
 * Key mapping bad, especially MIYOO A30 not fixed. TRIMUI will be better.  
 * MIYOO A30 works slowly, because of screen rotation of 90 degrees (or 270 degrees), NOT machine's reason.     
 
+## Bugs    
+* 无法进入第九日体验版的主菜单，立刻闪退, 无法打开    
+9th-trial - Exe(2016.1.12).rar  
+
 ## History  
 * 2025-01-11: krkrsdl2_v7.24_final.tar.gz, could miss files, first commit to github    
 * 2024-12-25: krkrsdl2_v1.tar.gz  
