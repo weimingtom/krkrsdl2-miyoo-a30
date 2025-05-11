@@ -44,10 +44,12 @@ make MIYOO=2 -j8 && make install && make run
 ```
 * For PC Xubuntu 20.04, by VirtualBox  
 ```
+sudo apt install make gcc g++ gdb libsdl2-dev  
 make MIYOO=0 clean
 make MIYOO=0 -j8
 make MIYOO=0 -j8 && make test
 make MIYOO=0 -j8 && make debug    
+./krkrsdl2
 ```
 * (not tested) For TRIMUI BRICK, after adb shell 'killall -KILL runtrimui.sh MainUI'  
 ```
