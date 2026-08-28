@@ -1,0 +1,23 @@
+[controller]
+left=104
+top=104
+stayontop=0
+
+[console]
+autoshowonerror=0
+left=130
+top=130
+width=515
+height=389
+exprhist=
+stayontop=0
+font=pEpPpPpPaAaAaAaAaAaAaAaAaAaAaAaAjAaBaAaAaAaAaAiAaAaAaAaAiCgMiChCcAjGlOjCkJaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaA
+
+[script editor]
+left=78
+top=78
+width=538
+height=352
+content=
+stayontop=0
+
